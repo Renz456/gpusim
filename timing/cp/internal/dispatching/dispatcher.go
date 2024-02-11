@@ -22,6 +22,15 @@ type Dispatcher interface {
 	Tick(now sim.VTimeInSec) (madeProgress bool)
 }
 
+type pauseStore struct {
+	req              *protocol.LaunchKernelReq
+	numDispatchedWGs int
+	numCompletedWGs  int
+	alg              algorithm
+	currWG           dispatchLocation
+	progressBar      *monitoring.ProgressBar
+}
+
 // A DispatcherImpl is a ticking component that can dispatch work-groups.
 type DispatcherImpl struct {
 	sim.HookableBase
@@ -40,6 +49,10 @@ type DispatcherImpl struct {
 	originalReqs           map[string]*protocol.MapWGReq
 	latencyTable           []int
 	constantKernelOverhead int
+
+	receivedPause bool
+	storedKernels []pauseStore
+	preemptReq    *protocol.LaunchKernelReq
 
 	monitor     *monitoring.Monitor
 	progressBar *monitoring.ProgressBar
@@ -63,6 +76,7 @@ func (d *DispatcherImpl) IsDispatching() bool {
 // makes dispatcher set aside current workgroup when it finishes
 func (d *DispatcherImpl) PauseDispatching(req *protocol.PauseReq) {
 	fmt.Println("Dispatcher recieved Pause req!", req.ID)
+	d.receivedPause = true
 }
 
 // StartDispatching lets the dispatcher to start dispatch another kernel.
@@ -107,6 +121,7 @@ func (d *DispatcherImpl) Tick(now sim.VTimeInSec) (madeProgress bool) {
 
 	if d.dispatching != nil {
 		if d.kernelCompleted() {
+			fmt.Println("Kernel complete")
 			madeProgress = d.completeKernel(now) || madeProgress
 		} else {
 			madeProgress = d.dispatchNextWG(now) || madeProgress
@@ -170,6 +185,19 @@ func (d *DispatcherImpl) kernelCompleted() bool {
 	return true
 }
 
+func (d *DispatcherImpl) repplaceWithPreempt() {
+	d.dispatching = d.preemptReq
+	d.alg.StartNewKernel(kernels.KernelLaunchInfo{
+		CodeObject: d.dispatching.HsaCo,
+		Packet:     d.dispatching.Packet,
+		PacketAddr: d.dispatching.PacketAddress,
+		WGFilter:   d.dispatching.WGFilter,
+	})
+	d.numDispatchedWGs = 0
+	d.numCompletedWGs = 0
+	d.initializeProgressBar(req.ID)
+}
+
 func (d *DispatcherImpl) completeKernel(now sim.VTimeInSec) (
 	madeProgress bool,
 ) {
@@ -206,7 +234,21 @@ func (d *DispatcherImpl) dispatchNextWG(
 			return false
 		}
 	}
-
+	if d.receivedPause {
+		fmt.Println("dispatch pause stop")
+		pause := pauseStore{
+			req:              d.dispatching,
+			numDispatchedWGs: d.numDispatchedWGs,
+			numCompletedWGs:  d.numCompletedWGs,
+			alg:              d.alg,
+			currWG:           d.currWG,
+			progressBar:      d.progressBar,
+		}
+		d.storedKernels = append(d.storedKernels, pause)
+		// d.repplaceWithPreempt()
+		d.dispatching = nil
+		return true
+	}
 	reqBuilder := protocol.MapWGReqBuilder{}.
 		WithSrc(d.dispatchingPort).
 		WithDst(d.currWG.cu).

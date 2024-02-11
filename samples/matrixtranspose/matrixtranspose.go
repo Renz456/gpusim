@@ -15,15 +15,16 @@ func main() {
 	runner := new(runner.Runner).ParseFlag().Init()
 
 	// 3gb
-	benchmark := matrixtranspose.NewBenchmark(runner.Driver())
-	benchmark.Width = 100
+	benchmark1 := matrixtranspose.NewBenchmark(runner.Driver())
+	benchmark1.Width = 500
 	// benchmark.Width = *dataWidth
-	runner.AddBenchmark(benchmark)
+	runner.AddBenchmark(benchmark1)
 
 	// 2gb
-	// benchmark = matrixtranspose.NewBenchmark(runner.Driver())
-	// benchmark.Width = 1500
-	// runner.AddBenchmark(benchmark)
+	benchmark := matrixtranspose.NewBenchmark(runner.Driver())
+	benchmark.Width = 100
+	runner.AddBenchmark(benchmark)
 
 	runner.Run()
+	// runner.PauseBenchMark(benchmark1)
 }

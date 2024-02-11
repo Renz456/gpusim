@@ -175,6 +175,7 @@ func (p *CommandProcessor) processPauseReq(now sim.VTimeInSec, req *protocol.Pau
 	p.ToDriver.Retrieve(now)
 	d := p.Dispatchers[0]
 	if !d.IsDispatching() {
+		fmt.Println("dispatcher is not busy")
 		return true
 	} // if dispatcher is already free, there's nothing to stop
 

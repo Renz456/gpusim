@@ -100,14 +100,16 @@ func (b *Benchmark) Run() {
 	// b.queues = append(b.queues, b.driver.CreateCommandQueue(b.context))
 
 	b.initMem()
-	b.driver.PauseContext(b.context, b.queues[0])
+	if b.Width == 500 {
+		b.driver.PauseContext(b.context, b.queues[0])
+	}
 	b.exec()
 }
 
 func (b *Benchmark) initMem() {
 	numData := b.Width * b.Width
 	// numData = 40000
-	fmt.Println("b widht", b.Width)
+	fmt.Println("b width", b.Width)
 	b.hInputData = make([]uint32, numData)
 	b.hOutputData = make([]uint32, numData)
 	fmt.Println("Num data", uint64(numData*4))
