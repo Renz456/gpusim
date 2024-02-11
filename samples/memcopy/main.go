@@ -80,7 +80,7 @@ func main() {
 	runner := new(runner.Runner).ParseFlag().Init()
 
 	benchmark := NewBenchmark(runner.Driver())
-	benchmark.ByteSize = 1048576
+	benchmark.ByteSize = 10485760
 
 	runner.AddBenchmark(benchmark)
 

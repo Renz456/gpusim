@@ -3,6 +3,7 @@
 package matrixtranspose
 
 import (
+	"fmt"
 	"log"
 
 	// embed hsaco files
@@ -60,6 +61,14 @@ func NewBenchmark(driver *driver.Driver) *Benchmark {
 	return b
 }
 
+func (b *Benchmark) GetQueue() *driver.CommandQueue {
+	return b.queues[0]
+}
+
+func (b *Benchmark) GetContext() *driver.Context {
+	return b.context
+}
+
 // SelectGPU selects GPU
 func (b *Benchmark) SelectGPU(gpus []int) {
 	b.gpus = gpus
@@ -75,6 +84,7 @@ var hsacoBytes []byte
 
 func (b *Benchmark) loadProgram() {
 	b.kernel = kernels.LoadProgramFromMemory(hsacoBytes, "matrixTranspose")
+	fmt.Println("size of input data", len(b.kernel.Data))
 	if b.kernel == nil {
 		log.Panic("Failed to load kernel binary")
 	}
@@ -86,6 +96,8 @@ func (b *Benchmark) Run() {
 		b.driver.SelectGPU(b.context, gpu)
 		b.queues = append(b.queues, b.driver.CreateCommandQueue(b.context))
 	}
+	// b.driver.SelectGPU(b.context, b.gpus[0])
+	// b.queues = append(b.queues, b.driver.CreateCommandQueue(b.context))
 
 	b.initMem()
 	b.exec()
@@ -93,10 +105,11 @@ func (b *Benchmark) Run() {
 
 func (b *Benchmark) initMem() {
 	numData := b.Width * b.Width
-
+	// numData = 40000
+	fmt.Println("b widht", b.Width)
 	b.hInputData = make([]uint32, numData)
 	b.hOutputData = make([]uint32, numData)
-
+	fmt.Println("Num data", uint64(numData*4))
 	for i := 0; i < numData; i++ {
 		b.hInputData[i] = uint32(i)
 	}
@@ -111,11 +124,22 @@ func (b *Benchmark) initMem() {
 			b.context, uint64(numData*4))
 		b.dOutputData = b.driver.AllocateMemory(
 			b.context, uint64(numData*4))
+
+		// original code
 		b.driver.Distribute(b.context, b.dInputData, uint64(numData*4), b.gpus)
 		b.driver.Distribute(b.context, b.dOutputData, uint64(numData*4), b.gpus)
+		// if b.Width == 1000 {
+		// 	fmt.Println("in dist", b.driver.Distribute(b.context, b.dInputData, uint64(numData*4), b.gpus[1:2]))
+		// 	fmt.Println("out dist", b.driver.Distribute(b.context, b.dOutputData, uint64(numData*4), b.gpus[1:2]))
+		// } else {
+		// 	fmt.Println("test splice", b.gpus[1:2], b.gpus[0:1], b.Width)
+		// 	fmt.Println("in dist", b.driver.Distribute(b.context, b.dInputData, uint64(numData*4), b.gpus[1:2]))
+		// 	fmt.Println("out dist", b.driver.Distribute(b.context, b.dOutputData, uint64(numData*4), b.gpus[1:2]))
+		// }
 	}
 
 	b.driver.MemCopyH2D(b.context, b.dInputData, b.hInputData)
+	fmt.Println("Done init")
 }
 
 func (b *Benchmark) exec() {
@@ -123,7 +147,7 @@ func (b *Benchmark) exec() {
 	wiHeight := uint32(b.Width / b.elemsPerThread1Dim)
 	numWGWidth := wiWidth / uint32(b.blockSize)
 	wgXPerGPU := numWGWidth / uint32(len(b.queues))
-
+	fmt.Println("queue len", len(b.queues))
 	for i, queue := range b.queues {
 		wiWidthPerGPU := int(wiWidth) / len(b.queues)
 

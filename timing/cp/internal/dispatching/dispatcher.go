@@ -141,7 +141,7 @@ func (d *DispatcherImpl) processMessagesFromCU(now sim.VTimeInSec) bool {
 		if d.progressBar != nil {
 			d.progressBar.MoveInProgressToFinished(1)
 		}
-
+		// @Rene I would probably deschedule the process here??
 		return true
 	}
 

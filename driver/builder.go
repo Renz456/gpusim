@@ -111,7 +111,8 @@ func (b *Builder) createCPU(d *Driver) {
 		Type:     internal.DeviceTypeCPU,
 		MemState: internal.NewDeviceMemoryState(d.Log2PageSize),
 	}
-	cpu.SetTotalMemSize(4 * mem.GB)
+	// Rene big change cpu (was 4gb)
+	cpu.SetTotalMemSize(6 * mem.GB)
 
 	d.memAllocator.RegisterDevice(cpu)
 	d.devices = append(d.devices, cpu)

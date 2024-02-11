@@ -294,6 +294,7 @@ func (p *CommandProcessor) processLaunchKernelReq(
 ) bool {
 	d := p.findAvailableDispatcher()
 
+	// check if premption here
 	if d == nil {
 		return false
 	}

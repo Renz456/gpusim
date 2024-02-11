@@ -2,6 +2,7 @@
 package runner
 
 import (
+	"fmt"
 	"log"
 
 	// Enable profiling
@@ -242,6 +243,8 @@ func (r *Runner) Run() {
 	r.platform.Driver.Run()
 
 	var wg sync.WaitGroup
+	fmt.Println("benchmarks", len(r.benchmarks))
+
 	for _, b := range r.benchmarks {
 		wg.Add(1)
 		go func(b benchmarks.Benchmark, wg *sync.WaitGroup) {
@@ -265,6 +268,10 @@ func (r *Runner) Run() {
 	r.platform.Engine.Finished()
 
 	atexit.Exit(0)
+}
+
+func (r *Runner) PauseBenchMark(b benchmarks.Benchmark) {
+	r.platform.Driver.PauseContext(b.GetContext(), b.GetQueue())
 }
 
 // Driver returns the GPU driver used by the current runner.

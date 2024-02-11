@@ -349,6 +349,7 @@ func (r *Runner) addSIMDBusyTimeTracer() {
 }
 
 func (r *Runner) reportStats() {
+	// fmt.Println("Reporting stats")
 	r.reportExecutionTime()
 	r.reportInstCount()
 	r.reportCPIStack()

@@ -7,6 +7,26 @@ import (
 	"github.com/sarchlab/mgpusim/v3/kernels"
 )
 
+type StopReq struct {
+	sim.MsgMeta
+	PID vm.PID
+}
+
+func (m *StopReq) Meta() *sim.MsgMeta {
+	return &m.MsgMeta
+}
+
+// NewStopReq Creates a new stop command, setting the request send time
+// with time and the source and destination.
+func NewStopReq(time sim.VTimeInSec, src, dst sim.Port) *StopReq {
+	cmd := new(StopReq)
+	cmd.ID = sim.GetIDGenerator().Generate()
+	cmd.SendTime = time
+	cmd.Src = src
+	cmd.Dst = dst
+	return cmd
+}
+
 // FlushReq requests the GPU to flush all the cache to the main memory
 type FlushReq struct {
 	sim.MsgMeta
@@ -29,6 +49,7 @@ func NewFlushReq(time sim.VTimeInSec, src, dst sim.Port) *FlushReq {
 }
 
 // A LaunchKernelReq is a request that asks a GPU to launch a kernel
+// Can modify to include premption status
 type LaunchKernelReq struct {
 	sim.MsgMeta
 

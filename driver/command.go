@@ -17,8 +17,6 @@ type Command interface {
 // @Renz456 This command is meant to pause a kernel in the middle of its execution.
 type PauseKernelCommand struct {
 	ID   string
-	Dst  Ptr
-	Src  interface{}
 	Reqs []sim.Msg
 }
 

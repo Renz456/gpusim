@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"fmt"
 	"log"
 	"reflect"
 	"runtime/debug"
@@ -65,6 +66,13 @@ type Driver struct {
 func (d *Driver) Run() {
 	d.logSimulationStart()
 	go d.runAsync()
+}
+
+func (d *Driver) PauseContext(ctx *Context, queue *CommandQueue) {
+	cmd := &PauseKernelCommand{
+		ID: sim.GetIDGenerator().Generate(),
+	}
+	d.Enqueue(queue, cmd)
 }
 
 // Terminate stops the driver thread execution.
@@ -283,7 +291,11 @@ func (d *Driver) processOneCommand(
 	case *LaunchUnifiedMultiGPUKernelCommand:
 		d.logCmdStart(cmd, now)
 		return d.processUnifiedMultiGPULaunchKernelCommand(now, cmd, cmdQueue)
+	case *PauseKernelCommand:
+		d.logCmdStart(cmd, now) // Do I need this??
+		return d.processPauseKernelCommand(now, cmd, cmdQueue)
 	default:
+		fmt.Println("middleware command")
 		return d.processCommandWithMiddleware(now, cmd, cmdQueue)
 	}
 }
@@ -303,6 +315,19 @@ func (d *Driver) processCommandWithMiddleware(
 	}
 
 	return false
+}
+
+func (d *Driver) processPauseKernelCommand(
+	now sim.VTimeInSec,
+	cmd Command,
+	cmdQueue *CommandQueue,
+) bool {
+	req := protocol.NewStopReq(now, d.gpuPort, d.GPUs[cmdQueue.GPUID-1])
+	cmd.AddReq(req) // Why does launch kernel do append??? Did yifan forget the interface for Command?
+
+	d.requestsToSend = append(d.requestsToSend, req)
+	d.logTaskToGPUInitiate(now, cmd, req) // Do I need this tooo???
+	return true
 }
 
 func (d *Driver) logCmdStart(cmd Command, now sim.VTimeInSec) {
