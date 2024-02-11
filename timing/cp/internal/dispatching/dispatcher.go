@@ -195,7 +195,7 @@ func (d *DispatcherImpl) repplaceWithPreempt() {
 	})
 	d.numDispatchedWGs = 0
 	d.numCompletedWGs = 0
-	d.initializeProgressBar(req.ID)
+	d.initializeProgressBar(d.dispatching.ID)
 }
 
 func (d *DispatcherImpl) completeKernel(now sim.VTimeInSec) (
