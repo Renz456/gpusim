@@ -7,19 +7,19 @@ import (
 	"github.com/sarchlab/mgpusim/v3/kernels"
 )
 
-type StopReq struct {
+type PauseReq struct {
 	sim.MsgMeta
 	PID vm.PID
 }
 
-func (m *StopReq) Meta() *sim.MsgMeta {
+func (m *PauseReq) Meta() *sim.MsgMeta {
 	return &m.MsgMeta
 }
 
-// NewStopReq Creates a new stop command, setting the request send time
+// NewPauseReq Creates a new stop command, setting the request send time
 // with time and the source and destination.
-func NewStopReq(time sim.VTimeInSec, src, dst sim.Port) *StopReq {
-	cmd := new(StopReq)
+func NewPauseReq(time sim.VTimeInSec, src, dst sim.Port) *PauseReq {
+	cmd := new(PauseReq)
 	cmd.ID = sim.GetIDGenerator().Generate()
 	cmd.SendTime = time
 	cmd.Src = src

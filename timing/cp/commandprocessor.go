@@ -1,6 +1,8 @@
 package cp
 
 import (
+	"fmt"
+
 	"github.com/sarchlab/akita/v3/mem/cache"
 	"github.com/sarchlab/akita/v3/mem/idealmemcontroller"
 	"github.com/sarchlab/akita/v3/mem/mem"
@@ -160,9 +162,26 @@ func (p *CommandProcessor) processReqFromDriver(now sim.VTimeInSec) bool {
 		return p.processGPURestartReq(now, req)
 	case *protocol.PageMigrationReqToCP:
 		return p.processPageMigrationReq(now, req)
+	case *protocol.PauseReq:
+		return p.processPauseReq(now, req)
 	}
 
 	panic("never")
+}
+
+// This function is only going to work with 1 dispatcher now
+func (p *CommandProcessor) processPauseReq(now sim.VTimeInSec, req *protocol.PauseReq) bool {
+	fmt.Println("Cp received a pause req!")
+	p.ToDriver.Retrieve(now)
+	d := p.Dispatchers[0]
+	if !d.IsDispatching() {
+		return true
+	} // if dispatcher is already free, there's nothing to stop
+
+	d.PauseDispatching(req)
+	tracing.TraceReqReceive(req, p) // Do I need this???
+	return true
+
 }
 
 func (p *CommandProcessor) processRspFromInternal(now sim.VTimeInSec) bool {

@@ -100,6 +100,7 @@ func (b *Benchmark) Run() {
 	// b.queues = append(b.queues, b.driver.CreateCommandQueue(b.context))
 
 	b.initMem()
+	b.driver.PauseContext(b.context, b.queues[0])
 	b.exec()
 }
 

@@ -72,6 +72,7 @@ func (d *Driver) PauseContext(ctx *Context, queue *CommandQueue) {
 	cmd := &PauseKernelCommand{
 		ID: sim.GetIDGenerator().Generate(),
 	}
+	fmt.Println("Enqueing pause")
 	d.Enqueue(queue, cmd)
 }
 
@@ -283,6 +284,7 @@ func (d *Driver) processOneCommand(
 
 	switch cmd := cmd.(type) {
 	case *LaunchKernelCommand:
+		fmt.Println("Processing Launch", len(cmdQueue.commands))
 		d.logCmdStart(cmd, now)
 		return d.processLaunchKernelCommand(now, cmd, cmdQueue)
 	case *NoopCommand:
@@ -292,10 +294,11 @@ func (d *Driver) processOneCommand(
 		d.logCmdStart(cmd, now)
 		return d.processUnifiedMultiGPULaunchKernelCommand(now, cmd, cmdQueue)
 	case *PauseKernelCommand:
+		fmt.Println("Processing Pause", len(cmdQueue.commands))
 		d.logCmdStart(cmd, now) // Do I need this??
 		return d.processPauseKernelCommand(now, cmd, cmdQueue)
 	default:
-		fmt.Println("middleware command")
+		// fmt.Println("middleware command")
 		return d.processCommandWithMiddleware(now, cmd, cmdQueue)
 	}
 }
@@ -322,10 +325,11 @@ func (d *Driver) processPauseKernelCommand(
 	cmd Command,
 	cmdQueue *CommandQueue,
 ) bool {
-	req := protocol.NewStopReq(now, d.gpuPort, d.GPUs[cmdQueue.GPUID-1])
+	req := protocol.NewPauseReq(now, d.gpuPort, d.GPUs[cmdQueue.GPUID-1])
 	cmd.AddReq(req) // Why does launch kernel do append??? Did yifan forget the interface for Command?
 
 	d.requestsToSend = append(d.requestsToSend, req)
+	cmdQueue.Dequeue()
 	d.logTaskToGPUInitiate(now, cmd, req) // Do I need this tooo???
 	return true
 }

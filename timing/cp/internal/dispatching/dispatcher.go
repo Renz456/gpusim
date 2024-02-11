@@ -18,6 +18,7 @@ type Dispatcher interface {
 	RegisterCU(cu resource.DispatchableCU)
 	IsDispatching() bool
 	StartDispatching(req *protocol.LaunchKernelReq)
+	PauseDispatching(req *protocol.PauseReq)
 	Tick(now sim.VTimeInSec) (madeProgress bool)
 }
 
@@ -57,6 +58,11 @@ func (d *DispatcherImpl) RegisterCU(cu resource.DispatchableCU) {
 // IsDispatching checks if the dispatcher is dispatching another kernel.
 func (d *DispatcherImpl) IsDispatching() bool {
 	return d.dispatching != nil
+}
+
+// makes dispatcher set aside current workgroup when it finishes
+func (d *DispatcherImpl) PauseDispatching(req *protocol.PauseReq) {
+	fmt.Println("Dispatcher recieved Pause req!", req.ID)
 }
 
 // StartDispatching lets the dispatcher to start dispatch another kernel.

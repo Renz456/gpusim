@@ -255,7 +255,7 @@ func (r *Runner) Run() {
 			}
 
 			b.Run()
-
+			// r.PauseBenchMark(b)
 			if r.Verify {
 				b.Verify()
 			}
