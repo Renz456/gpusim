@@ -164,6 +164,8 @@ func (p *CommandProcessor) processReqFromDriver(now sim.VTimeInSec) bool {
 		return p.processPageMigrationReq(now, req)
 	case *protocol.PauseReq:
 		return p.processPauseReq(now, req)
+	case *protocol.ResumeReq:
+		return p.processResumeReq(now, req)
 	}
 
 	panic("never")
@@ -180,6 +182,21 @@ func (p *CommandProcessor) processPauseReq(now sim.VTimeInSec, req *protocol.Pau
 	} // if dispatcher is already free, there's nothing to stop
 
 	d.PauseDispatching(req)
+	tracing.TraceReqReceive(req, p) // Do I need this???
+	return true
+
+}
+
+func (p *CommandProcessor) processResumeReq(now sim.VTimeInSec, req *protocol.ResumeReq) bool {
+	fmt.Println("Cp received a Resume req!")
+	p.ToDriver.Retrieve(now)
+	d := p.Dispatchers[0]
+	if !d.IsDispatching() {
+		fmt.Println("dispatcher is not busy")
+		return true
+	} // if dispatcher is already free, there's nothing to stop
+
+	d.ResumeDispatching(req)
 	tracing.TraceReqReceive(req, p) // Do I need this???
 	return true
 
@@ -817,6 +834,7 @@ func (p *CommandProcessor) processMemCopyReq(
 	var cloned sim.Msg
 	switch req := req.(type) {
 	case *protocol.MemCopyH2DReq:
+		// fmt.Println("received h2d req", req.ID)
 		cloned = p.cloneMemCopyH2DReq(req)
 	case *protocol.MemCopyD2HReq:
 		cloned = p.cloneMemCopyD2HReq(req)

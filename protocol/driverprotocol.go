@@ -27,6 +27,26 @@ func NewPauseReq(time sim.VTimeInSec, src, dst sim.Port) *PauseReq {
 	return cmd
 }
 
+type ResumeReq struct {
+	sim.MsgMeta
+	PID vm.PID
+}
+
+func (m *ResumeReq) Meta() *sim.MsgMeta {
+	return &m.MsgMeta
+}
+
+// NewResumeReq Creates a new stop command, setting the request send time
+// with time and the source and destination.
+func NewResumeReq(time sim.VTimeInSec, src, dst sim.Port) *ResumeReq {
+	cmd := new(ResumeReq)
+	cmd.ID = sim.GetIDGenerator().Generate()
+	cmd.SendTime = time
+	cmd.Src = src
+	cmd.Dst = dst
+	return cmd
+}
+
 // FlushReq requests the GPU to flush all the cache to the main memory
 type FlushReq struct {
 	sim.MsgMeta

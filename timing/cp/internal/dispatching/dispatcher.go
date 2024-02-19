@@ -19,6 +19,7 @@ type Dispatcher interface {
 	IsDispatching() bool
 	StartDispatching(req *protocol.LaunchKernelReq)
 	PauseDispatching(req *protocol.PauseReq)
+	ResumeDispatching(req *protocol.ResumeReq)
 	Tick(now sim.VTimeInSec) (madeProgress bool)
 }
 
@@ -77,6 +78,16 @@ func (d *DispatcherImpl) IsDispatching() bool {
 func (d *DispatcherImpl) PauseDispatching(req *protocol.PauseReq) {
 	fmt.Println("Dispatcher recieved Pause req!", req.ID)
 	d.receivedPause = true
+}
+
+// makes dispatcher set resume current workgroup when it finishes
+func (d *DispatcherImpl) ResumeDispatching(req *protocol.ResumeReq) {
+	fmt.Println("Dispatcher recieved Resume req!", req.ID)
+	d.receivedPause = false
+	if len(d.storedKernels) > 0 {
+		d.dispatching = d.storedKernels[0].req
+		d.storedKernels = d.storedKernels[1:]
+	}
 }
 
 // StartDispatching lets the dispatcher to start dispatch another kernel.

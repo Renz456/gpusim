@@ -76,6 +76,14 @@ func (d *Driver) PauseContext(ctx *Context, queue *CommandQueue) {
 	d.Enqueue(queue, cmd)
 }
 
+func (d *Driver) ResumeContext(ctx *Context, queue *CommandQueue) {
+	cmd := &ResumeKernelCommand{
+		ID: sim.GetIDGenerator().Generate(),
+	}
+	fmt.Println("Enqueing Resume")
+	d.Enqueue(queue, cmd)
+}
+
 // Terminate stops the driver thread execution.
 func (d *Driver) Terminate() {
 	d.driverStopped <- true
@@ -174,16 +182,23 @@ func (d *Driver) Tick(now sim.VTimeInSec) bool {
 	madeProgress := false
 
 	madeProgress = d.sendToGPUs(now) || madeProgress
+	// fmt.Println("driver seng ", madeProgress, now)
 	madeProgress = d.sendToMMU(now) || madeProgress
+	// fmt.Println("driver senm ", madeProgress, now)
 	madeProgress = d.sendMigrationReqToCP(now) || madeProgress
+	// fmt.Println("driver senc ", madeProgress, now)
 
 	for _, mw := range d.middlewares {
 		madeProgress = mw.Tick(now) || madeProgress
 	}
+	// fmt.Println("driver midl ", madeProgress, now)
 
 	madeProgress = d.processReturnReq(now) || madeProgress
+	// fmt.Println("driver retq ", madeProgress, now)
 	madeProgress = d.processNewCommand(now) || madeProgress
+	// fmt.Println("driver ncom ", madeProgress, now)
 	madeProgress = d.parseFromMMU(now) || madeProgress
+	// fmt.Println("driver tick ", madeProgress, now)
 
 	return madeProgress
 }
@@ -297,6 +312,10 @@ func (d *Driver) processOneCommand(
 		fmt.Println("Processing Pause", len(cmdQueue.commands))
 		d.logCmdStart(cmd, now) // Do I need this??
 		return d.processPauseKernelCommand(now, cmd, cmdQueue)
+	case *ResumeKernelCommand:
+		fmt.Println("Processing Resume", len(cmdQueue.commands))
+		d.logCmdStart(cmd, now) // Do I need this??
+		return d.processResumeKernelCommand(now, cmd, cmdQueue)
 	default:
 		// fmt.Println("middleware command")
 		return d.processCommandWithMiddleware(now, cmd, cmdQueue)
@@ -326,6 +345,20 @@ func (d *Driver) processPauseKernelCommand(
 	cmdQueue *CommandQueue,
 ) bool {
 	req := protocol.NewPauseReq(now, d.gpuPort, d.GPUs[cmdQueue.GPUID-1])
+	cmd.AddReq(req) // Why does launch kernel do append??? Did yifan forget the interface for Command?
+
+	d.requestsToSend = append(d.requestsToSend, req)
+	cmdQueue.Dequeue()
+	d.logTaskToGPUInitiate(now, cmd, req) // Do I need this tooo???
+	return true
+}
+
+func (d *Driver) processResumeKernelCommand(
+	now sim.VTimeInSec,
+	cmd Command,
+	cmdQueue *CommandQueue,
+) bool {
+	req := protocol.NewResumeReq(now, d.gpuPort, d.GPUs[cmdQueue.GPUID-1])
 	cmd.AddReq(req) // Why does launch kernel do append??? Did yifan forget the interface for Command?
 
 	d.requestsToSend = append(d.requestsToSend, req)
@@ -395,7 +428,7 @@ func (d *Driver) processLaunchKernelCommand(
 	queue.Context.markAllBuffersDirty()
 
 	d.logTaskToGPUInitiate(now, cmd, req)
-
+	fmt.Println("kernel startd at", now, queue.Context.pid, queue.GPUID)
 	return true
 }
 
@@ -493,7 +526,7 @@ func (d *Driver) processLaunchKernelReturn(
 ) bool {
 	req, cmd, cmdQueue := d.findCommandByReqID(rsp.RspTo)
 	cmd.RemoveReq(req)
-
+	fmt.Println("kernel finished at time", now, cmdQueue.Context.pid)
 	d.logTaskToGPUClear(now, req)
 
 	if len(cmd.GetReqs()) == 0 {
@@ -639,7 +672,15 @@ func (d *Driver) sendShootDownReqs(now sim.VTimeInSec) bool {
 			vAddr, pid)
 		d.requestsToSend = append(d.requestsToSend, shootDownReq)
 	}
-
+	// to stop GPU 0 in a page fault. @Renz this is a big change, remove when not doing experiment
+	fmt.Println("Sending pause with shootdown")
+	// req := protocol.NewPauseReq(now, d.gpuPort, d.GPUs[0])
+	// req.Meta().SendTime = now
+	// err := d.gpuPort.Send(req)
+	// for err != nil {
+	// 	err = d.gpuPort.Send(req)
+	// }
+	// d.requestsToSend = append(d.requestsToSend, req)
 	return true
 }
 
@@ -682,6 +723,15 @@ func (d *Driver) processShootdownCompleteRsp(
 				d.numPagesMigratingACK++
 			}
 		}
+
+		// req := protocol.NewResumeReq(now, d.gpuPort, d.GPUs[0])
+		// req.Meta().SendTime = now
+		// err := d.gpuPort.Send(req)
+		// for err != nil {
+		// 	err = d.gpuPort.Send(req)
+		// }
+		// d.requestsToSend = append(d.requestsToSend, req)
+
 		return true
 	}
 

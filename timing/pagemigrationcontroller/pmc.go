@@ -1,6 +1,7 @@
 package pagemigrationcontroller
 
 import (
+	"fmt"
 	"log"
 	"reflect"
 
@@ -131,6 +132,7 @@ func (e *PageMigrationController) processPageMigrationReqFromCtrlPort(
 		return false
 	}
 
+	fmt.Println("recevied req from for pmc?")
 	destination := e.currentMigrationRequest.PMCPortOfRemoteGPU
 	pageSize := e.currentMigrationRequest.PageSize
 
@@ -182,6 +184,7 @@ func (e *PageMigrationController) sendMigrationReqToAnotherPMC(
 		}
 	}
 
+	fmt.Println("is this a page fault?")
 	e.toPullFromAnotherPMC = newInPullFromAnotherPMC
 	return madeProgress
 }

@@ -245,9 +245,9 @@ func (r *Runner) Run() {
 	var wg sync.WaitGroup
 	fmt.Println("benchmarks", len(r.benchmarks))
 
-	for _, b := range r.benchmarks {
+	for i, b := range r.benchmarks {
 		wg.Add(1)
-		go func(b benchmarks.Benchmark, wg *sync.WaitGroup) {
+		go func(b benchmarks.Benchmark, wg *sync.WaitGroup, i int) {
 			if r.Verify {
 				if b, ok := b.(verificationPreEnablingBenchmark); ok {
 					b.EnableVerification()
@@ -255,11 +255,20 @@ func (r *Runner) Run() {
 			}
 
 			b.Run()
+			fmt.Println("launching benchmark ", i)
+			// if i == 1 {
+			// r.PauseBenchMark(b)
+			// if i == 0 {
+			// time.Sleep(5 * time.Second)
+			// r.ResumeBenchMark(b)
+			// }
+			// }
 			if r.Verify {
 				b.Verify()
 			}
 			wg.Done()
-		}(b, &wg)
+			fmt.Println("done benchmark", i)
+		}(b, &wg, i)
 	}
 	wg.Wait()
 
@@ -270,7 +279,13 @@ func (r *Runner) Run() {
 }
 
 func (r *Runner) PauseBenchMark(b benchmarks.Benchmark) {
+	fmt.Println("Runner calling pause")
 	r.platform.Driver.PauseContext(b.GetContext(), b.GetQueue())
+}
+
+func (r *Runner) ResumeBenchMark(b benchmarks.Benchmark) {
+	fmt.Println("Runner calling Resume")
+	r.platform.Driver.ResumeContext(b.GetContext(), b.GetQueue())
 }
 
 // Driver returns the GPU driver used by the current runner.

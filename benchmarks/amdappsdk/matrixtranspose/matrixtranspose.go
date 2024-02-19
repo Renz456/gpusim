@@ -96,13 +96,14 @@ func (b *Benchmark) Run() {
 		b.driver.SelectGPU(b.context, gpu)
 		b.queues = append(b.queues, b.driver.CreateCommandQueue(b.context))
 	}
+	// ok with pause, using og code above might break something
 	// b.driver.SelectGPU(b.context, b.gpus[0])
 	// b.queues = append(b.queues, b.driver.CreateCommandQueue(b.context))
 
 	b.initMem()
-	if b.Width == 500 {
-		b.driver.PauseContext(b.context, b.queues[0])
-	}
+	// if b.Width == 500 {
+	// 	b.driver.PauseContext(b.context, b.queues[0])
+	// }
 	b.exec()
 }
 
@@ -131,13 +132,13 @@ func (b *Benchmark) initMem() {
 		// original code
 		b.driver.Distribute(b.context, b.dInputData, uint64(numData*4), b.gpus)
 		b.driver.Distribute(b.context, b.dOutputData, uint64(numData*4), b.gpus)
-		// if b.Width == 1000 {
-		// 	fmt.Println("in dist", b.driver.Distribute(b.context, b.dInputData, uint64(numData*4), b.gpus[1:2]))
-		// 	fmt.Println("out dist", b.driver.Distribute(b.context, b.dOutputData, uint64(numData*4), b.gpus[1:2]))
+		// if b.Width == 100 {
+		// 	fmt.Println("in dist", b.driver.Distribute(b.context, b.dInputData, uint64(numData*4), b.gpus[0:1]))
+		// 	fmt.Println("out dist", b.driver.Distribute(b.context, b.dOutputData, uint64(numData*4), b.gpus[0:1]))
 		// } else {
 		// 	fmt.Println("test splice", b.gpus[1:2], b.gpus[0:1], b.Width)
-		// 	fmt.Println("in dist", b.driver.Distribute(b.context, b.dInputData, uint64(numData*4), b.gpus[1:2]))
-		// 	fmt.Println("out dist", b.driver.Distribute(b.context, b.dOutputData, uint64(numData*4), b.gpus[1:2]))
+		// 	fmt.Println("in dist", b.driver.Distribute(b.context, b.dInputData, uint64(numData*4), b.gpus[0:1]))
+		// 	fmt.Println("out dist", b.driver.Distribute(b.context, b.dOutputData, uint64(numData*4), b.gpus[0:1]))
 		// }
 	}
 
@@ -146,11 +147,17 @@ func (b *Benchmark) initMem() {
 }
 
 func (b *Benchmark) exec() {
+	// @Renz456 big changes here
 	wiWidth := uint32(b.Width / b.elemsPerThread1Dim)
 	wiHeight := uint32(b.Width / b.elemsPerThread1Dim)
 	numWGWidth := wiWidth / uint32(b.blockSize)
 	wgXPerGPU := numWGWidth / uint32(len(b.queues))
 	fmt.Println("queue len", len(b.queues))
+	// if b.Width == 100 {
+	// 	queue_arr := b.queues[0:1]
+	// } else {
+	// 	queue_arr := b.queues[1:2]
+	// }
 	for i, queue := range b.queues {
 		wiWidthPerGPU := int(wiWidth) / len(b.queues)
 
