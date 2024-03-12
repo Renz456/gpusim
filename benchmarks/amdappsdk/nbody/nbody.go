@@ -60,6 +60,14 @@ type Benchmark struct {
 	dNewVel          *driver.Ptr
 }
 
+func (b *Benchmark) GetQueue() *driver.CommandQueue {
+	return b.queues[0]
+}
+
+func (b *Benchmark) GetContext() *driver.Context {
+	return b.context
+}
+
 // NewBenchmark returns a benchmark
 func NewBenchmark(driver *driver.Driver) *Benchmark {
 	b := new(Benchmark)

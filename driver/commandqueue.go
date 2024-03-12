@@ -103,6 +103,7 @@ func (q *CommandQueue) NumCommand() int {
 // Enqueue adds a command to a command queue and triggers GPUs to start to
 // consume the command.
 func (d *Driver) Enqueue(q *CommandQueue, c Command) {
+	// fmt.Println("enqueing cmd", c)
 	q.Enqueue(c)
 	// d.enqueueSignal <- true
 }

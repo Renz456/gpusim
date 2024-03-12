@@ -14,6 +14,60 @@ type Command interface {
 	RemoveReq(req sim.Msg)
 }
 
+// @Renz456 This command is meant to pause a kernel in the middle of its execution.
+type PauseKernelCommand struct {
+	ID   string
+	Reqs []sim.Msg
+}
+
+// GetID returns the ID of the command
+func (c *PauseKernelCommand) GetID() string {
+	return c.ID
+}
+
+// GetReqs returns the requests associated with the command
+func (c *PauseKernelCommand) GetReqs() []sim.Msg {
+	return c.Reqs
+}
+
+// AddReq adds a request to the request list associated with the command
+func (c *PauseKernelCommand) AddReq(req sim.Msg) {
+	c.Reqs = append(c.Reqs, req)
+}
+
+// RemoveReq removes a request from the request list associated with the
+// command.
+func (c *PauseKernelCommand) RemoveReq(req sim.Msg) {
+	c.Reqs = removeMsgFromMsgList(req, c.Reqs)
+}
+
+// @Renz456 This command is meant to pause a kernel in the middle of its execution.
+type ResumeKernelCommand struct {
+	ID   string
+	Reqs []sim.Msg
+}
+
+// GetID returns the ID of the command
+func (c *ResumeKernelCommand) GetID() string {
+	return c.ID
+}
+
+// GetReqs returns the requests associated with the command
+func (c *ResumeKernelCommand) GetReqs() []sim.Msg {
+	return c.Reqs
+}
+
+// AddReq adds a request to the request list associated with the command
+func (c *ResumeKernelCommand) AddReq(req sim.Msg) {
+	c.Reqs = append(c.Reqs, req)
+}
+
+// RemoveReq removes a request from the request list associated with the
+// command.
+func (c *ResumeKernelCommand) RemoveReq(req sim.Msg) {
+	c.Reqs = removeMsgFromMsgList(req, c.Reqs)
+}
+
 // A MemCopyH2DCommand is a command that copies memory from the host to a
 // GPU when the command is processed
 type MemCopyH2DCommand struct {

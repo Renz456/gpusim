@@ -1,6 +1,7 @@
 package emu
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/sarchlab/akita/v3/mem/mem"
@@ -29,6 +30,7 @@ func (a *storageAccessor) Read(pid vm.PID, vAddr, byteSize uint64) []byte {
 		}
 
 		page, found := a.pageTable.Find(pid, currVAddr)
+		fmt.Println("check this page ", page.DeviceID)
 		if !found {
 			panic("page not found in page table")
 		}
@@ -67,6 +69,7 @@ func (a *storageAccessor) Write(pid vm.PID, vAddr uint64, data []byte) {
 		}
 
 		page, found := a.pageTable.Find(pid, vAddr)
+		fmt.Println("writing to page with device", page.DeviceID)
 		if !found {
 			panic("page not found in page table")
 		}

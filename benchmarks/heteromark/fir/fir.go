@@ -67,6 +67,14 @@ func (b *Benchmark) SelectGPU(gpus []int) {
 	b.gpus = gpus
 }
 
+func (b *Benchmark) GetContext() *driver.Context {
+	return b.context
+}
+
+func (b *Benchmark) GetQueue() *driver.CommandQueue {
+	return b.queue
+}
+
 // SetUnifiedMemory uses Unified Memory
 func (b *Benchmark) SetUnifiedMemory() {
 	b.useUnifiedMemory = true

@@ -49,7 +49,7 @@ func MakeR9NanoBuilder() R9NanoPlatformBuilder {
 		numGPU:            4,
 		numSAPerGPU:       16,
 		numCUPerSA:        4,
-		log2PageSize:      12,
+		log2PageSize:      21,
 		traceVisStartTime: -1,
 		traceVisEndTime:   -1,
 	}
@@ -174,7 +174,7 @@ func (b R9NanoPlatformBuilder) Build() *Platform {
 func (b R9NanoPlatformBuilder) buildGPUDriver(
 	pageTable vm.PageTable,
 ) *driver.Driver {
-	gpuDriverBuilder := driver.MakeBuilder()
+	gpuDriverBuilder := driver.MakeBuilder().WithFreq(1 * sim.GHz)
 	if b.useMagicMemoryCopy {
 		gpuDriverBuilder = gpuDriverBuilder.WithMagicMemoryCopyMiddleware()
 	}
@@ -281,6 +281,7 @@ func (b R9NanoPlatformBuilder) createRDMAAddrTable() *mem.BankedLowModuleFinder 
 	return rdmaAddressTable
 }
 
+/* og params: freq = 1ghz, switch = 140, */
 func (b R9NanoPlatformBuilder) createConnection(
 	engine sim.Engine,
 	gpuDriver *driver.Driver,
@@ -291,8 +292,10 @@ func (b R9NanoPlatformBuilder) createConnection(
 	// connection.SrcBufferCapacity = 40960000
 	pcieConnector := pcie.NewConnector().
 		WithEngine(engine).
-		WithVersion(3, 16).
-		WithSwitchLatency(140)
+		WithFrequency(10 * sim.GHz).
+		// WithVersion(3, 16).
+		WithBandwidth(10 * 1024 * 1024 * 1024).
+		WithSwitchLatency(14)
 
 	if b.visTracer != nil {
 		pcieConnector = pcieConnector.WithVisTracer(b.visTracer)
@@ -328,7 +331,7 @@ func (b R9NanoPlatformBuilder) createMMU(
 	pageTable := vm.NewPageTable(b.log2PageSize)
 	mmuBuilder := mmu.MakeBuilder().
 		WithEngine(engine).
-		WithFreq(1 * sim.GHz).
+		WithFreq(10 * sim.GHz).
 		WithPageWalkingLatency(100).
 		WithLog2PageSize(b.log2PageSize).
 		WithPageTable(pageTable)

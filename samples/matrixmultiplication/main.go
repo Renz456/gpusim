@@ -25,5 +25,11 @@ func main() {
 
 	runner.AddBenchmark(benchmark)
 
+	benchmark = matrixmultiplication.NewBenchmark(runner.Driver())
+	benchmark.X = uint32(*xFlag)
+	benchmark.Y = uint32(*yFlag)
+	benchmark.Z = uint32(*zFlag)
+	runner.AddBenchmark(benchmark)
+
 	runner.Run()
 }

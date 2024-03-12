@@ -74,13 +74,21 @@ func (b *Benchmark) Verify() {
 	log.Printf("Passed!")
 }
 
+func (b *Benchmark) GetContext() *driver.Context {
+	return nil
+}
+
+func (b *Benchmark) GetQueue() *driver.CommandQueue {
+	return nil
+}
+
 func main() {
 	flag.Parse()
 
 	runner := new(runner.Runner).ParseFlag().Init()
 
 	benchmark := NewBenchmark(runner.Driver())
-	benchmark.ByteSize = 1048576
+	benchmark.ByteSize = 1024 * 1024 * 10
 
 	runner.AddBenchmark(benchmark)
 

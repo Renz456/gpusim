@@ -101,6 +101,13 @@ func (b *Benchmark) SelectGPU(gpuIDs []int) {
 		b.queues[i] = b.driver.CreateCommandQueue(b.context)
 	}
 }
+func (b *Benchmark) GetContext() *driver.Context {
+	return b.context
+}
+
+func (b *Benchmark) GetQueue() *driver.CommandQueue {
+	return b.queues[0]
+}
 
 // SetUnifiedMemory uses Unified Memory
 func (b *Benchmark) SetUnifiedMemory() {

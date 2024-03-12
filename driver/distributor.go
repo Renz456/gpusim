@@ -1,6 +1,8 @@
 package driver
 
 import (
+	"fmt"
+
 	"github.com/sarchlab/mgpusim/v3/driver/internal"
 )
 
@@ -33,7 +35,7 @@ func (d *distributorImpl) Distribute(
 	if addr%pageSize != 0 {
 		panic("Address much align with pages")
 	}
-
+	fmt.Println("um hello?")
 	byteAllocatedOnEachGPU = make([]uint64, len(gpuIDs))
 	numPages := (byteSize-1)/pageSize + 1
 	numGPUs := uint64(len(gpuIDs))
@@ -49,6 +51,7 @@ func (d *distributorImpl) Distribute(
 
 	var i uint64
 	var lastAllocatedGPU uint64
+	fmt.Println("check num gpus", numGPUsToUse, numGPUs, gpuIDs[0], remainingPages) //@Renz456 BIG CHANGE HERE LOOK AT i
 	for i = 0; i < numGPUsToUse; i++ {
 		d.memAllocator.Remap(
 			ctx.pid,

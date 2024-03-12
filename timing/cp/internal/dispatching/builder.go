@@ -89,6 +89,8 @@ func (b Builder) Build(name string) Dispatcher {
 		},
 		constantKernelOverhead: 0,
 		monitor:                b.monitor,
+		receivedPause:          false,
+		storedKernels:          make([]pauseStore, 0),
 	}
 
 	switch b.alg {

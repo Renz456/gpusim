@@ -33,6 +33,14 @@ type Benchmark struct {
 	EnableTesting      bool
 }
 
+func (b *Benchmark) GetQueue() *driver.CommandQueue {
+	return nil
+}
+
+func (b *Benchmark) GetContext() *driver.Context {
+	return b.ctx
+}
+
 // NewBenchmark creates a new benchmark.
 func NewBenchmark(driver *driver.Driver) *Benchmark {
 	b := new(Benchmark)

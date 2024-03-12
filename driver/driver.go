@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"fmt"
 	"log"
 	"reflect"
 	"runtime/debug"
@@ -67,6 +68,22 @@ func (d *Driver) Run() {
 	go d.runAsync()
 }
 
+func (d *Driver) PauseContext(ctx *Context, queue *CommandQueue) {
+	cmd := &PauseKernelCommand{
+		ID: sim.GetIDGenerator().Generate(),
+	}
+	fmt.Println("Enqueing pause")
+	d.Enqueue(queue, cmd)
+}
+
+func (d *Driver) ResumeContext(ctx *Context, queue *CommandQueue) {
+	cmd := &ResumeKernelCommand{
+		ID: sim.GetIDGenerator().Generate(),
+	}
+	fmt.Println("Enqueing Resume")
+	d.Enqueue(queue, cmd)
+}
+
 // Terminate stops the driver thread execution.
 func (d *Driver) Terminate() {
 	d.driverStopped <- true
@@ -94,6 +111,7 @@ func (d *Driver) runAsync() {
 		case <-d.driverStopped:
 			return
 		case <-d.enqueueSignal:
+			// fmt.Println("Pausing engine")
 			d.Engine.Pause()
 			d.TickLater(d.Engine.CurrentTime())
 			d.Engine.Continue()
@@ -101,12 +119,14 @@ func (d *Driver) runAsync() {
 			d.engineRunningMutex.Lock()
 			if d.engineRunning {
 				d.engineRunningMutex.Unlock()
+				// fmt.Println("Ran engine")
 				continue
 			}
 
 			d.engineRunning = true
 			go d.runEngine()
 			d.engineRunningMutex.Unlock()
+			// fmt.Println("Ran engine")
 		}
 	}
 }
@@ -165,16 +185,23 @@ func (d *Driver) Tick(now sim.VTimeInSec) bool {
 	madeProgress := false
 
 	madeProgress = d.sendToGPUs(now) || madeProgress
+	// fmt.Println("driver seng ", madeProgress, now)
 	madeProgress = d.sendToMMU(now) || madeProgress
+	// fmt.Println("driver senm ", madeProgress, now)
 	madeProgress = d.sendMigrationReqToCP(now) || madeProgress
+	// fmt.Println("driver senc ", madeProgress, now)
 
 	for _, mw := range d.middlewares {
 		madeProgress = mw.Tick(now) || madeProgress
 	}
+	// fmt.Println("driver midl ", madeProgress, now)
 
 	madeProgress = d.processReturnReq(now) || madeProgress
+	// fmt.Println("driver retq ", madeProgress, now)
 	madeProgress = d.processNewCommand(now) || madeProgress
+	// fmt.Println("driver ncom ", madeProgress, now)
 	madeProgress = d.parseFromMMU(now) || madeProgress
+	// fmt.Println("driver tick ", madeProgress, now)
 
 	return madeProgress
 }
@@ -208,12 +235,14 @@ func (d *Driver) processReturnReq(now sim.VTimeInSec) bool {
 		return d.processLaunchKernelReturn(now, req)
 	case *protocol.RDMADrainRspToDriver:
 		d.gpuPort.Retrieve(now)
+		fmt.Println("received rdma")
 		return d.processRDMADrainRsp(now, req)
 	case *protocol.ShootDownCompleteRsp:
 		d.gpuPort.Retrieve(now)
 		return d.processShootdownCompleteRsp(now, req)
 	case *protocol.PageMigrationRspToDriver:
 		d.gpuPort.Retrieve(now)
+		fmt.Println("PMC reps")
 		return d.processPageMigrationRspFromCP(now, req)
 	case *protocol.RDMARestartRspToDriver:
 		d.gpuPort.Retrieve(now)
@@ -275,6 +304,7 @@ func (d *Driver) processOneCommand(
 
 	switch cmd := cmd.(type) {
 	case *LaunchKernelCommand:
+		fmt.Println("Processing Launch", len(cmdQueue.commands))
 		d.logCmdStart(cmd, now)
 		return d.processLaunchKernelCommand(now, cmd, cmdQueue)
 	case *NoopCommand:
@@ -283,7 +313,16 @@ func (d *Driver) processOneCommand(
 	case *LaunchUnifiedMultiGPUKernelCommand:
 		d.logCmdStart(cmd, now)
 		return d.processUnifiedMultiGPULaunchKernelCommand(now, cmd, cmdQueue)
+	case *PauseKernelCommand:
+		fmt.Println("Processing Pause", len(cmdQueue.commands))
+		d.logCmdStart(cmd, now) // Do I need this??
+		return d.processPauseKernelCommand(now, cmd, cmdQueue)
+	case *ResumeKernelCommand:
+		fmt.Println("Processing Resume", len(cmdQueue.commands))
+		d.logCmdStart(cmd, now) // Do I need this??
+		return d.processResumeKernelCommand(now, cmd, cmdQueue)
 	default:
+		// fmt.Println("middleware command")
 		return d.processCommandWithMiddleware(now, cmd, cmdQueue)
 	}
 }
@@ -303,6 +342,34 @@ func (d *Driver) processCommandWithMiddleware(
 	}
 
 	return false
+}
+
+func (d *Driver) processPauseKernelCommand(
+	now sim.VTimeInSec,
+	cmd Command,
+	cmdQueue *CommandQueue,
+) bool {
+	req := protocol.NewPauseReq(now, d.gpuPort, d.GPUs[cmdQueue.GPUID-1])
+	cmd.AddReq(req) // Why does launch kernel do append??? Did yifan forget the interface for Command?
+
+	d.requestsToSend = append(d.requestsToSend, req)
+	cmdQueue.Dequeue()
+	d.logTaskToGPUInitiate(now, cmd, req) // Do I need this tooo???
+	return true
+}
+
+func (d *Driver) processResumeKernelCommand(
+	now sim.VTimeInSec,
+	cmd Command,
+	cmdQueue *CommandQueue,
+) bool {
+	req := protocol.NewResumeReq(now, d.gpuPort, d.GPUs[cmdQueue.GPUID-1])
+	cmd.AddReq(req) // Why does launch kernel do append??? Did yifan forget the interface for Command?
+
+	d.requestsToSend = append(d.requestsToSend, req)
+	cmdQueue.Dequeue()
+	d.logTaskToGPUInitiate(now, cmd, req) // Do I need this tooo???
+	return true
 }
 
 func (d *Driver) logCmdStart(cmd Command, now sim.VTimeInSec) {
@@ -349,8 +416,9 @@ func (d *Driver) processLaunchKernelCommand(
 	cmd *LaunchKernelCommand,
 	queue *CommandQueue,
 ) bool {
+	// fmt.Println("launching kernel")
 	req := protocol.NewLaunchKernelReq(now,
-		d.gpuPort, d.GPUs[queue.GPUID-1])
+		d.gpuPort, d.GPUs[0])
 	req.PID = queue.Context.pid
 	req.HsaCo = cmd.CodeObject
 
@@ -366,7 +434,7 @@ func (d *Driver) processLaunchKernelCommand(
 	queue.Context.markAllBuffersDirty()
 
 	d.logTaskToGPUInitiate(now, cmd, req)
-
+	fmt.Println("kernel startd at", now, queue.Context.pid, queue.GPUID)
 	return true
 }
 
@@ -464,7 +532,7 @@ func (d *Driver) processLaunchKernelReturn(
 ) bool {
 	req, cmd, cmdQueue := d.findCommandByReqID(rsp.RspTo)
 	cmd.RemoveReq(req)
-
+	fmt.Println("kernel finished at time", now, cmdQueue.Context.pid)
 	d.logTaskToGPUClear(now, req)
 
 	if len(cmd.GetReqs()) == 0 {
@@ -547,6 +615,7 @@ func (d *Driver) parseFromMMU(now sim.VTimeInSec) bool {
 
 	switch req := req.(type) {
 	case *vm.PageMigrationReqToDriver:
+		fmt.Println("page mig req?")
 		d.currentPageMigrationReq = req
 		d.isCurrentlyHandlingMigrationReq = true
 		d.initiateRDMADrain(now)
@@ -610,7 +679,15 @@ func (d *Driver) sendShootDownReqs(now sim.VTimeInSec) bool {
 			vAddr, pid)
 		d.requestsToSend = append(d.requestsToSend, shootDownReq)
 	}
-
+	// to stop GPU 0 in a page fault. @Renz this is a big change, remove when not doing experiment
+	fmt.Println("Sending pause with shootdown")
+	// req := protocol.NewPauseReq(now, d.gpuPort, d.GPUs[0])
+	// req.Meta().SendTime = now
+	// err := d.gpuPort.Send(req)
+	// for err != nil {
+	// 	err = d.gpuPort.Send(req)
+	// }
+	// d.requestsToSend = append(d.requestsToSend, req)
 	return true
 }
 
@@ -653,6 +730,15 @@ func (d *Driver) processShootdownCompleteRsp(
 				d.numPagesMigratingACK++
 			}
 		}
+
+		// req := protocol.NewResumeReq(now, d.gpuPort, d.GPUs[0])
+		// req.Meta().SendTime = now
+		// err := d.gpuPort.Send(req)
+		// for err != nil {
+		// 	err = d.gpuPort.Send(req)
+		// }
+		// d.requestsToSend = append(d.requestsToSend, req)
+
 		return true
 	}
 
@@ -696,7 +782,7 @@ func (d *Driver) preparePageForMigration(
 		panic("page not founds")
 	}
 	oldPAddr := page.PAddr
-
+	fmt.Println("do we enter here?")
 	newPage := d.memAllocator.AllocatePageWithGivenVAddr(
 		context.pid, int(gpuID+1), vAddr, true)
 	newPage.DeviceID = gpuID + 1
@@ -723,6 +809,7 @@ func (d *Driver) sendMigrationReqToCP(now sim.VTimeInSec) bool {
 	if err == nil {
 		d.migrationReqToSendToCP = d.migrationReqToSendToCP[1:]
 		d.isCurrentlyMigratingOnePage = true
+		fmt.Println("sending pm to cp?")
 		return true
 	}
 
@@ -784,6 +871,7 @@ func (d *Driver) preparePageMigrationRspToMMU(now sim.VTimeInSec) {
 			req.VAddr = append(req.VAddr, vAddrs[j])
 		}
 	}
+	fmt.Println("Page prep?")
 	req.RspToTop = d.currentPageMigrationReq.RespondToTop
 	d.toSendToMMU = req
 }
@@ -825,6 +913,7 @@ func (d *Driver) sendToMMU(now sim.VTimeInSec) bool {
 	if d.toSendToMMU == nil {
 		return false
 	}
+	fmt.Println("sending to mmu?")
 	req := d.toSendToMMU
 	req.SendTime = now
 	err := d.mmuPort.Send(req)

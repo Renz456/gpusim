@@ -27,7 +27,7 @@ type Builder struct {
 func MakeBuilder() Builder {
 	b := Builder{
 		freq:           1 * sim.GHz,
-		numDispatchers: 8,
+		numDispatchers: 8, //@Renz456 Big change, this used to be 8
 	}
 	return b
 }

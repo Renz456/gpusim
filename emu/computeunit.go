@@ -2,6 +2,7 @@ package emu
 
 import (
 	"encoding/binary"
+	"fmt"
 	"log"
 	"math"
 	"reflect"
@@ -77,11 +78,13 @@ func (cu *ComputeUnit) LDSBytes() int {
 // Handle defines the behavior on event scheduled on the ComputeUnit
 func (cu *ComputeUnit) Handle(evt sim.Event) error {
 	cu.Lock()
-
+	fmt.Println("cu handle")
 	switch evt := evt.(type) {
 	case sim.TickEvent:
+		fmt.Println("running tick?")
 		cu.TickingComponent.Handle(evt)
 	case *emulationEvent:
+		fmt.Println("running emulation?")
 		cu.runEmulation(evt)
 	case *WGCompleteEvent:
 		cu.handleWGCompleteEvent(evt)
@@ -102,10 +105,10 @@ func (cu *ComputeUnit) Tick(now sim.VTimeInSec) bool {
 
 func (cu *ComputeUnit) processMapWGReq(now sim.VTimeInSec) {
 	msg := cu.ToDispatcher.Retrieve(now)
+	fmt.Println("process mapwg from disp in cu")
 	if msg == nil {
 		return
 	}
-
 	req := msg.(*protocol.MapWGReq)
 
 	if cu.nextTick <= now {
@@ -136,7 +139,7 @@ func (cu *ComputeUnit) runWG(
 ) error {
 	wg := req.WorkGroup
 	cu.initWfs(wg, req)
-
+	fmt.Println("running wg")
 	for !cu.isAllWfCompleted(wg) {
 		for _, wf := range cu.wfs[wg] {
 			cu.alu.SetLDS(wf.LDS)
@@ -312,6 +315,7 @@ func (cu *ComputeUnit) runWfUntilBarrier(wf *Wavefront) error {
 	for {
 		instBuf := cu.storageAccessor.Read(wf.pid, wf.PC, 8)
 
+		fmt.Println("hi in run til barrier")
 		inst, _ := cu.decoder.Decode(instBuf)
 		wf.inst = inst
 

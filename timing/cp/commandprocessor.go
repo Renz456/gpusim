@@ -1,6 +1,8 @@
 package cp
 
 import (
+	"fmt"
+
 	"github.com/sarchlab/akita/v3/mem/cache"
 	"github.com/sarchlab/akita/v3/mem/idealmemcontroller"
 	"github.com/sarchlab/akita/v3/mem/mem"
@@ -160,9 +162,44 @@ func (p *CommandProcessor) processReqFromDriver(now sim.VTimeInSec) bool {
 		return p.processGPURestartReq(now, req)
 	case *protocol.PageMigrationReqToCP:
 		return p.processPageMigrationReq(now, req)
+	case *protocol.PauseReq:
+		return p.processPauseReq(now, req)
+	case *protocol.ResumeReq:
+		return p.processResumeReq(now, req)
 	}
 
 	panic("never")
+}
+
+// This function is only going to work with 1 dispatcher now
+func (p *CommandProcessor) processPauseReq(now sim.VTimeInSec, req *protocol.PauseReq) bool {
+	fmt.Println("Cp received a pause req!")
+	p.ToDriver.Retrieve(now)
+	d := p.Dispatchers[0]
+	if !d.IsDispatching() {
+		fmt.Println("dispatcher is not busy")
+		return true
+	} // if dispatcher is already free, there's nothing to stop
+
+	d.PauseDispatching(req)
+	tracing.TraceReqReceive(req, p) // Do I need this???
+	return true
+
+}
+
+func (p *CommandProcessor) processResumeReq(now sim.VTimeInSec, req *protocol.ResumeReq) bool {
+	fmt.Println("Cp received a Resume req!")
+	p.ToDriver.Retrieve(now)
+	d := p.Dispatchers[0]
+	if !d.IsDispatching() {
+		fmt.Println("dispatcher is not busy")
+		return true
+	} // if dispatcher is already free, there's nothing to stop
+
+	d.ResumeDispatching(req)
+	tracing.TraceReqReceive(req, p) // Do I need this???
+	return true
+
 }
 
 func (p *CommandProcessor) processRspFromInternal(now sim.VTimeInSec) bool {
@@ -279,7 +316,7 @@ func (p *CommandProcessor) processRspFromPMC(now sim.VTimeInSec) bool {
 	if msg == nil {
 		return false
 	}
-
+	fmt.Println("cp askeed for pmc?")
 	switch req := msg.(type) {
 	case *pagemigrationcontroller.PageMigrationRspFromPMC:
 		return p.processPageMigrationRsp(now, req)
@@ -294,6 +331,7 @@ func (p *CommandProcessor) processLaunchKernelReq(
 ) bool {
 	d := p.findAvailableDispatcher()
 
+	// check if premption here
 	if d == nil {
 		return false
 	}
@@ -355,7 +393,6 @@ func (p *CommandProcessor) processShootdownCommand(
 
 	p.currShootdownRequest = cmd
 	p.shootDownInProcess = true
-
 	for i := 0; i < len(p.CUs); i++ {
 		p.numCUAck++
 		req := protocol.CUPipelineFlushReqBuilder{}.
@@ -365,7 +402,7 @@ func (p *CommandProcessor) processShootdownCommand(
 			Build()
 		p.toCUsSender.Send(req)
 	}
-
+	fmt.Println("processing shootdown?")
 	p.ToDriver.Retrieve(now)
 
 	return true
@@ -796,6 +833,7 @@ func (p *CommandProcessor) processMemCopyReq(
 	var cloned sim.Msg
 	switch req := req.(type) {
 	case *protocol.MemCopyH2DReq:
+		// fmt.Println("received h2d req", req.ID)
 		cloned = p.cloneMemCopyH2DReq(req)
 	case *protocol.MemCopyD2HReq:
 		cloned = p.cloneMemCopyD2HReq(req)

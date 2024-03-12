@@ -1,6 +1,7 @@
 package pagemigrationcontroller
 
 import (
+	"fmt"
 	"log"
 	"reflect"
 
@@ -65,7 +66,7 @@ func (e *PageMigrationController) Tick(now sim.VTimeInSec) bool {
 	madeProgress = e.processDataReadyRspFromMemCtrl(now) || madeProgress
 	madeProgress = e.processDataPullRsp(now) || madeProgress
 	madeProgress = e.processWriteDoneRspFromMemCtrl(now) || madeProgress
-
+	// fmt.Println("check pmc prog", madeProgress)
 	return madeProgress
 }
 
@@ -131,6 +132,7 @@ func (e *PageMigrationController) processPageMigrationReqFromCtrlPort(
 		return false
 	}
 
+	fmt.Println("recevied req from for pmc?")
 	destination := e.currentMigrationRequest.PMCPortOfRemoteGPU
 	pageSize := e.currentMigrationRequest.PageSize
 
@@ -182,6 +184,7 @@ func (e *PageMigrationController) sendMigrationReqToAnotherPMC(
 		}
 	}
 
+	// fmt.Println("is this a page fault?")
 	e.toPullFromAnotherPMC = newInPullFromAnotherPMC
 	return madeProgress
 }

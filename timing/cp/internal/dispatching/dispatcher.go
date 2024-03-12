@@ -18,7 +18,18 @@ type Dispatcher interface {
 	RegisterCU(cu resource.DispatchableCU)
 	IsDispatching() bool
 	StartDispatching(req *protocol.LaunchKernelReq)
+	PauseDispatching(req *protocol.PauseReq)
+	ResumeDispatching(req *protocol.ResumeReq)
 	Tick(now sim.VTimeInSec) (madeProgress bool)
+}
+
+type pauseStore struct {
+	req              *protocol.LaunchKernelReq
+	numDispatchedWGs int
+	numCompletedWGs  int
+	alg              algorithm
+	currWG           dispatchLocation
+	progressBar      *monitoring.ProgressBar
 }
 
 // A DispatcherImpl is a ticking component that can dispatch work-groups.
@@ -40,6 +51,10 @@ type DispatcherImpl struct {
 	latencyTable           []int
 	constantKernelOverhead int
 
+	receivedPause bool
+	storedKernels []pauseStore
+	preemptReq    *protocol.LaunchKernelReq
+
 	monitor     *monitoring.Monitor
 	progressBar *monitoring.ProgressBar
 }
@@ -57,6 +72,22 @@ func (d *DispatcherImpl) RegisterCU(cu resource.DispatchableCU) {
 // IsDispatching checks if the dispatcher is dispatching another kernel.
 func (d *DispatcherImpl) IsDispatching() bool {
 	return d.dispatching != nil
+}
+
+// makes dispatcher set aside current workgroup when it finishes
+func (d *DispatcherImpl) PauseDispatching(req *protocol.PauseReq) {
+	fmt.Println("Dispatcher recieved Pause req!", req.ID)
+	d.receivedPause = true
+}
+
+// makes dispatcher set resume current workgroup when it finishes
+func (d *DispatcherImpl) ResumeDispatching(req *protocol.ResumeReq) {
+	fmt.Println("Dispatcher recieved Resume req!", req.ID)
+	d.receivedPause = false
+	if len(d.storedKernels) > 0 {
+		d.dispatching = d.storedKernels[0].req
+		d.storedKernels = d.storedKernels[1:]
+	}
 }
 
 // StartDispatching lets the dispatcher to start dispatch another kernel.
@@ -101,6 +132,7 @@ func (d *DispatcherImpl) Tick(now sim.VTimeInSec) (madeProgress bool) {
 
 	if d.dispatching != nil {
 		if d.kernelCompleted() {
+			fmt.Println("Kernel complete")
 			madeProgress = d.completeKernel(now) || madeProgress
 		} else {
 			madeProgress = d.dispatchNextWG(now) || madeProgress
@@ -120,6 +152,7 @@ func (d *DispatcherImpl) processMessagesFromCU(now sim.VTimeInSec) bool {
 
 	switch msg := msg.(type) {
 	case *protocol.WGCompletionMsg:
+		// fmt.Println("wg complete??")
 		location, ok := d.inflightWGs[msg.RspTo]
 		if !ok {
 			return false
@@ -141,7 +174,7 @@ func (d *DispatcherImpl) processMessagesFromCU(now sim.VTimeInSec) bool {
 		if d.progressBar != nil {
 			d.progressBar.MoveInProgressToFinished(1)
 		}
-
+		// @Rene I would probably deschedule the process here??
 		return true
 	}
 
@@ -162,6 +195,19 @@ func (d *DispatcherImpl) kernelCompleted() bool {
 	}
 
 	return true
+}
+
+func (d *DispatcherImpl) repplaceWithPreempt() {
+	d.dispatching = d.preemptReq
+	d.alg.StartNewKernel(kernels.KernelLaunchInfo{
+		CodeObject: d.dispatching.HsaCo,
+		Packet:     d.dispatching.Packet,
+		PacketAddr: d.dispatching.PacketAddress,
+		WGFilter:   d.dispatching.WGFilter,
+	})
+	d.numDispatchedWGs = 0
+	d.numCompletedWGs = 0
+	d.initializeProgressBar(d.dispatching.ID)
 }
 
 func (d *DispatcherImpl) completeKernel(now sim.VTimeInSec) (
@@ -200,7 +246,21 @@ func (d *DispatcherImpl) dispatchNextWG(
 			return false
 		}
 	}
-
+	if d.receivedPause {
+		fmt.Println("dispatch pause stop")
+		pause := pauseStore{
+			req:              d.dispatching,
+			numDispatchedWGs: d.numDispatchedWGs,
+			numCompletedWGs:  d.numCompletedWGs,
+			alg:              d.alg,
+			currWG:           d.currWG,
+			progressBar:      d.progressBar,
+		}
+		d.storedKernels = append(d.storedKernels, pause)
+		// d.repplaceWithPreempt()
+		d.dispatching = nil
+		return true
+	}
 	reqBuilder := protocol.MapWGReqBuilder{}.
 		WithSrc(d.dispatchingPort).
 		WithDst(d.currWG.cu).

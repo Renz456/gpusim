@@ -42,6 +42,7 @@ func (d *WfDispatcherImpl) DispatchWf(
 ) {
 	d.setWfInfo(wf, location)
 	d.initRegisters(wf)
+	// fmt.Println("dispatching wg")
 }
 
 func (d *WfDispatcherImpl) setWfInfo(
