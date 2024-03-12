@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/sarchlab/mgpusim/v3/benchmarks/heteromark/fir"
+	"github.com/sarchlab/mgpusim/v3/benchmarks/heteromark/kmeans"
 	"github.com/sarchlab/mgpusim/v3/samples/runner"
 )
 
@@ -27,13 +28,13 @@ func main() {
 
 	// runner.AddBenchmark(benchmark)
 
-	// benchmark_kmeans := kmeans.NewBenchmark(runner.Driver())
-	// benchmark_kmeans.NumPoints = *points
-	// benchmark_kmeans.NumClusters = *clusters
-	// benchmark_kmeans.NumFeatures = *features
-	// benchmark_kmeans.MaxIter = *maxIter
+	benchmark_kmeans := kmeans.NewBenchmark(runner.Driver())
+	benchmark_kmeans.NumPoints = *points
+	benchmark_kmeans.NumClusters = *clusters
+	benchmark_kmeans.NumFeatures = *features
+	benchmark_kmeans.MaxIter = *maxIter
 
-	// runner.AddBenchmark(benchmark_kmeans)
+	runner.AddBenchmark(benchmark_kmeans)
 
 	// benchmark_kmeans = kmeans.NewBenchmark(runner.Driver())
 	// benchmark_kmeans.NumPoints = *points

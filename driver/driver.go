@@ -111,6 +111,7 @@ func (d *Driver) runAsync() {
 		case <-d.driverStopped:
 			return
 		case <-d.enqueueSignal:
+			// fmt.Println("Pausing engine")
 			d.Engine.Pause()
 			d.TickLater(d.Engine.CurrentTime())
 			d.Engine.Continue()
@@ -118,12 +119,14 @@ func (d *Driver) runAsync() {
 			d.engineRunningMutex.Lock()
 			if d.engineRunning {
 				d.engineRunningMutex.Unlock()
+				// fmt.Println("Ran engine")
 				continue
 			}
 
 			d.engineRunning = true
 			go d.runEngine()
 			d.engineRunningMutex.Unlock()
+			// fmt.Println("Ran engine")
 		}
 	}
 }
@@ -232,12 +235,14 @@ func (d *Driver) processReturnReq(now sim.VTimeInSec) bool {
 		return d.processLaunchKernelReturn(now, req)
 	case *protocol.RDMADrainRspToDriver:
 		d.gpuPort.Retrieve(now)
+		fmt.Println("received rdma")
 		return d.processRDMADrainRsp(now, req)
 	case *protocol.ShootDownCompleteRsp:
 		d.gpuPort.Retrieve(now)
 		return d.processShootdownCompleteRsp(now, req)
 	case *protocol.PageMigrationRspToDriver:
 		d.gpuPort.Retrieve(now)
+		fmt.Println("PMC reps")
 		return d.processPageMigrationRspFromCP(now, req)
 	case *protocol.RDMARestartRspToDriver:
 		d.gpuPort.Retrieve(now)
@@ -411,8 +416,9 @@ func (d *Driver) processLaunchKernelCommand(
 	cmd *LaunchKernelCommand,
 	queue *CommandQueue,
 ) bool {
+	// fmt.Println("launching kernel")
 	req := protocol.NewLaunchKernelReq(now,
-		d.gpuPort, d.GPUs[queue.GPUID-1])
+		d.gpuPort, d.GPUs[0])
 	req.PID = queue.Context.pid
 	req.HsaCo = cmd.CodeObject
 
@@ -609,6 +615,7 @@ func (d *Driver) parseFromMMU(now sim.VTimeInSec) bool {
 
 	switch req := req.(type) {
 	case *vm.PageMigrationReqToDriver:
+		fmt.Println("page mig req?")
 		d.currentPageMigrationReq = req
 		d.isCurrentlyHandlingMigrationReq = true
 		d.initiateRDMADrain(now)
@@ -775,7 +782,7 @@ func (d *Driver) preparePageForMigration(
 		panic("page not founds")
 	}
 	oldPAddr := page.PAddr
-
+	fmt.Println("do we enter here?")
 	newPage := d.memAllocator.AllocatePageWithGivenVAddr(
 		context.pid, int(gpuID+1), vAddr, true)
 	newPage.DeviceID = gpuID + 1
@@ -802,6 +809,7 @@ func (d *Driver) sendMigrationReqToCP(now sim.VTimeInSec) bool {
 	if err == nil {
 		d.migrationReqToSendToCP = d.migrationReqToSendToCP[1:]
 		d.isCurrentlyMigratingOnePage = true
+		fmt.Println("sending pm to cp?")
 		return true
 	}
 
@@ -863,6 +871,7 @@ func (d *Driver) preparePageMigrationRspToMMU(now sim.VTimeInSec) {
 			req.VAddr = append(req.VAddr, vAddrs[j])
 		}
 	}
+	fmt.Println("Page prep?")
 	req.RspToTop = d.currentPageMigrationReq.RespondToTop
 	d.toSendToMMU = req
 }
@@ -904,6 +913,7 @@ func (d *Driver) sendToMMU(now sim.VTimeInSec) bool {
 	if d.toSendToMMU == nil {
 		return false
 	}
+	fmt.Println("sending to mmu?")
 	req := d.toSendToMMU
 	req.SendTime = now
 	err := d.mmuPort.Send(req)

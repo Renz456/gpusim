@@ -152,6 +152,7 @@ func (d *DispatcherImpl) processMessagesFromCU(now sim.VTimeInSec) bool {
 
 	switch msg := msg.(type) {
 	case *protocol.WGCompletionMsg:
+		// fmt.Println("wg complete??")
 		location, ok := d.inflightWGs[msg.RspTo]
 		if !ok {
 			return false

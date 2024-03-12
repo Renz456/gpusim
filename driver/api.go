@@ -1,6 +1,7 @@
 package driver
 
 import (
+	"fmt"
 	"log"
 	"math"
 	"sync/atomic"
@@ -182,8 +183,15 @@ func (d *Driver) Distribute(
 	if len(gpuIDs) == 1 {
 		return []uint64{byteSize}
 	}
-
-	return d.distributor.Distribute(ctx, uint64(addr), byteSize, gpuIDs)
+	if ctx.pid == 2 {
+		fmt.Println("sending to gpu 2", byteSize)
+		return d.distributor.Distribute(ctx, uint64(addr), byteSize, gpuIDs[1:2])
+	} else {
+		fmt.Println("sending to gpu 1", byteSize, ctx.pid)
+		return d.distributor.Distribute(ctx, uint64(addr), byteSize, gpuIDs[0:1])
+	}
+	fmt.Println("are we distributing?")
+	return d.distributor.Distribute(ctx, uint64(addr), byteSize, gpuIDs[1:2])
 }
 
 func unique(in []int) []int {

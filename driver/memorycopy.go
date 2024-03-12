@@ -64,7 +64,7 @@ func (m *defaultMemoryCopyMiddleware) processMemCopyH2DCommand(
 
 		gpuID := m.driver.memAllocator.GetDeviceIDByPAddr(pAddr)
 		// gpuID = 1
-		fmt.Println("check gpuid for h2d", gpuID)
+		fmt.Println("check gpuid for h2d", gpuID, page.DeviceID)
 		req := protocol.NewMemCopyH2DReq(now,
 			m.driver.gpuPort, m.driver.GPUs[gpuID-1],
 			rawBytes[offset:offset+sizeToCopy],

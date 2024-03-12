@@ -53,6 +53,14 @@ func NewBenchmark(driver *driver.Driver) *Benchmark {
 	return b
 }
 
+func (b *Benchmark) GetQueue() *driver.CommandQueue {
+	return b.queues[0]
+}
+
+func (b *Benchmark) GetContext() *driver.Context {
+	return b.context
+}
+
 // SelectGPU selects gpu
 func (b *Benchmark) SelectGPU(gpus []int) {
 	b.gpus = gpus

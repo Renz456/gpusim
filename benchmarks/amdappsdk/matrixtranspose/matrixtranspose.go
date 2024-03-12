@@ -92,10 +92,18 @@ func (b *Benchmark) loadProgram() {
 
 // Run runs
 func (b *Benchmark) Run() {
+
+	// if b.Width == 100 {
+	// 	b.driver.SelectGPU(b.context, b.gpus[1])
+	// 	b.queues = append(b.queues, b.driver.CreateCommandQueue(b.context))
+	// } else {
+
 	for _, gpu := range b.gpus {
 		b.driver.SelectGPU(b.context, gpu)
 		b.queues = append(b.queues, b.driver.CreateCommandQueue(b.context))
 	}
+	// }
+
 	// ok with pause, using og code above might break something
 	// b.driver.SelectGPU(b.context, b.gpus[0])
 	// b.queues = append(b.queues, b.driver.CreateCommandQueue(b.context))
@@ -151,15 +159,15 @@ func (b *Benchmark) exec() {
 	wiWidth := uint32(b.Width / b.elemsPerThread1Dim)
 	wiHeight := uint32(b.Width / b.elemsPerThread1Dim)
 	numWGWidth := wiWidth / uint32(b.blockSize)
-	wgXPerGPU := numWGWidth / uint32(len(b.queues))
+	wgXPerGPU := numWGWidth // / uint32(len(b.queues))
 	fmt.Println("queue len", len(b.queues))
 	// if b.Width == 100 {
 	// 	queue_arr := b.queues[0:1]
 	// } else {
 	// 	queue_arr := b.queues[1:2]
 	// }
-	for i, queue := range b.queues {
-		wiWidthPerGPU := int(wiWidth) / len(b.queues)
+	for i, queue := range b.queues[0:1] {
+		wiWidthPerGPU := int(wiWidth) // / len(b.queues)
 
 		kernArg := KernelArgs{
 			b.dOutputData,

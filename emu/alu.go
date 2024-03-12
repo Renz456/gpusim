@@ -46,7 +46,7 @@ func (u *ALUImpl) LDS() []byte {
 //nolint:gocyclo
 func (u *ALUImpl) Run(state InstEmuState) {
 	inst := state.Inst()
-	// fmt.Printf("%s\n", inst.String(nil))
+	// fmt.Println("", inst.String(nil), insts.FLAT)
 
 	switch inst.FormatType {
 	case insts.SOP1:
@@ -68,12 +68,14 @@ func (u *ALUImpl) Run(state InstEmuState) {
 	case insts.VOPC:
 		u.runVOPC(state)
 	case insts.FLAT:
+		fmt.Println("run flat??")
 		u.runFlat(state)
 	case insts.SOPP:
 		u.runSOPP(state)
 	case insts.SOPK:
 		u.runSOPK(state)
 	case insts.DS:
+		// fmt.Println("runds?")
 		u.runDS(state)
 	default:
 		log.Panicf("Inst format %s is not supported", inst.Format.FormatName)

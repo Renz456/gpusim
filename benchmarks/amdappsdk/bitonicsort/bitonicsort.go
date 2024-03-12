@@ -59,6 +59,14 @@ func NewBenchmark(driver *driver.Driver) *Benchmark {
 	return b
 }
 
+func (b *Benchmark) GetQueue() *driver.CommandQueue {
+	return nil
+}
+
+func (b *Benchmark) GetContext() *driver.Context {
+	return b.context
+}
+
 //go:embed kernels.hsaco
 var hsacoBytes []byte
 

@@ -1,6 +1,7 @@
 package matrixmultiplication
 
 import (
+	"fmt"
 	"log"
 
 	// embed hsaco files
@@ -120,6 +121,8 @@ func (m *GPUMatrixMultiplier) initMemory(
 
 		return gA, gB, gC
 	}
+
+	fmt.Println("matmul size", uint64(mA.Width*mA.Height*4))
 	gA := m.driver.AllocateMemory(m.context, uint64(mA.Width*mA.Height*4))
 	m.driver.Distribute(m.context, gA, uint64(mA.Width*mA.Height*4), m.gpus)
 

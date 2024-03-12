@@ -195,6 +195,7 @@ func (u *VectorMemoryUnit) executeFlatStore(
 	now sim.VTimeInSec,
 	wave *wavefront.Wavefront,
 ) bool {
+	// fmt.Println("exec store?")
 	u.scratchpadPreparer.Prepare(wave, wave)
 	transactions := u.coalescer.generateMemTransactions(wave)
 

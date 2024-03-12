@@ -23,5 +23,11 @@ func main() {
 
 	runner.AddBenchmark(benchmark)
 
+	benchmark = floydwarshall.NewBenchmark(runner.Driver())
+	benchmark.NumNodes = uint32(*numNodes)
+	benchmark.NumIterations = uint32(*numIterations)
+
+	runner.AddBenchmark(benchmark)
+
 	runner.Run()
 }

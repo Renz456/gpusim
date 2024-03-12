@@ -316,7 +316,7 @@ func (p *CommandProcessor) processRspFromPMC(now sim.VTimeInSec) bool {
 	if msg == nil {
 		return false
 	}
-
+	fmt.Println("cp askeed for pmc?")
 	switch req := msg.(type) {
 	case *pagemigrationcontroller.PageMigrationRspFromPMC:
 		return p.processPageMigrationRsp(now, req)
@@ -393,7 +393,6 @@ func (p *CommandProcessor) processShootdownCommand(
 
 	p.currShootdownRequest = cmd
 	p.shootDownInProcess = true
-
 	for i := 0; i < len(p.CUs); i++ {
 		p.numCUAck++
 		req := protocol.CUPipelineFlushReqBuilder{}.
@@ -403,7 +402,7 @@ func (p *CommandProcessor) processShootdownCommand(
 			Build()
 		p.toCUsSender.Send(req)
 	}
-
+	fmt.Println("processing shootdown?")
 	p.ToDriver.Retrieve(now)
 
 	return true
