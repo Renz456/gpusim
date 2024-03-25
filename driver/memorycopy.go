@@ -22,6 +22,7 @@ func (m *defaultMemoryCopyMiddleware) ProcessCommand(
 ) (processed bool) {
 	switch cmd := cmd.(type) {
 	case *MemCopyH2DCommand:
+		fmt.Println("h2d memcopy called by process", queue.PID, queue.Context)
 		return m.processMemCopyH2DCommand(now, cmd, queue)
 	case *MemCopyD2HCommand:
 		return m.processMemCopyD2HCommand(now, cmd, queue)

@@ -1,6 +1,7 @@
 package cu
 
 import (
+	"fmt"
 	"log"
 	"reflect"
 
@@ -71,6 +72,9 @@ type ComputeUnit struct {
 
 	currentFlushReq   *protocol.CUPipelineFlushReq
 	currentRestartReq *protocol.CUPipelineRestartReq
+
+	/* Rene new stuff here */
+	currentPid int
 }
 
 // ControlPort returns the port that can receive controlling messages from the
@@ -126,22 +130,49 @@ func (cu *ComputeUnit) Tick(now sim.VTimeInSec) bool {
 //nolint:gocyclo
 func (cu *ComputeUnit) runPipeline(now sim.VTimeInSec) bool {
 	madeProgress := false
-
 	if !cu.isPaused {
-		madeProgress = cu.BranchUnit.Run(now) || madeProgress
-		madeProgress = cu.ScalarUnit.Run(now) || madeProgress
-		madeProgress = cu.ScalarDecoder.Run(now) || madeProgress
+		// madeProgress = cu.BranchUnit.Run(now) || madeProgress
+		// madeProgress = cu.ScalarUnit.Run(now) || madeProgress
+		// madeProgress = cu.ScalarDecoder.Run(now) || madeProgress
+		// for _, simdUnit := range cu.SIMDUnit {
+		// 	madeProgress = simdUnit.Run(now) || madeProgress
+		// }
+		// madeProgress = cu.VectorDecoder.Run(now) || madeProgress
+		// madeProgress = cu.LDSUnit.Run(now) || madeProgress
+		// madeProgress = cu.LDSDecoder.Run(now) || madeProgress
+		// madeProgress = cu.VectorMemUnit.Run(now) || madeProgress
+		// madeProgress = cu.VectorMemDecoder.Run(now) || madeProgress
+		// madeProgress = cu.Scheduler.Run(now) || madeProgress
+
+		branchProgress := cu.BranchUnit.Run(now)
+		scalarProgress := cu.ScalarUnit.Run(now)
+		scaldecodProgress := cu.ScalarDecoder.Run(now)
+		simProgress := false
 		for _, simdUnit := range cu.SIMDUnit {
-			madeProgress = simdUnit.Run(now) || madeProgress
+			simProgress = simdUnit.Run(now) || simProgress
 		}
-		madeProgress = cu.VectorDecoder.Run(now) || madeProgress
-		madeProgress = cu.LDSUnit.Run(now) || madeProgress
-		madeProgress = cu.LDSDecoder.Run(now) || madeProgress
-		madeProgress = cu.VectorMemUnit.Run(now) || madeProgress
-		madeProgress = cu.VectorMemDecoder.Run(now) || madeProgress
-		madeProgress = cu.Scheduler.Run(now) || madeProgress
+		vecdecProgress := cu.VectorDecoder.Run(now)
+		ldsuProgress := cu.LDSUnit.Run(now)
+		ldsdProgress := cu.LDSDecoder.Run(now)
+		vecmemProgress := cu.VectorMemUnit.Run(now)
+		schedProgress := cu.Scheduler.Run(now)
+		madeProgress = branchProgress || scalarProgress || scaldecodProgress ||
+			simProgress || vecdecProgress || ldsuProgress || ldsdProgress ||
+			vecmemProgress || schedProgress
+		if cu.currentPid == 2 && madeProgress && !schedProgress {
+			fmt.Println(branchProgress, scalarProgress, scaldecodProgress,
+				simProgress, vecdecProgress, ldsuProgress, ldsdProgress,
+				vecmemProgress, schedProgress)
+		}
+	} else {
+		if cu.currentPid == 2 {
+			fmt.Println("this should not happen")
+		}
 	}
 
+	// if cu.currentPid == 2 && !madeProgress {
+	// 	fmt.Println("check prog 2 ", madeProgress, now, cu.Name())
+	// }
 	return madeProgress
 }
 
@@ -188,6 +219,7 @@ func (cu *ComputeUnit) processInputFromCP(now sim.VTimeInSec) bool {
 	case *protocol.CUPipelineRestartReq:
 		cu.handlePipelineResume(now, req)
 	case *protocol.CUPipelineFlushReq:
+		// fmt.Println("cu got flush with pid", cu.currentPid, cu.Name(), req.PID)
 		cu.handlePipelineFlushReq(now, req)
 	default:
 		panic("unknown msg type")
@@ -200,8 +232,23 @@ func (cu *ComputeUnit) handlePipelineFlushReq(
 	now sim.VTimeInSec,
 	req *protocol.CUPipelineFlushReq,
 ) error {
-	cu.isFlushing = true
-	cu.currentFlushReq = req
+
+	// if req.PID == cu.currentPid {
+	// 	cu.isFlushing = true
+	// 	cu.currentFlushReq = req
+	// } else {
+	respondToCP := protocol.CUPipelineFlushRspBuilder{}.
+		WithSendTime(now).
+		WithSrc(cu.ToCP).
+		WithDst(req.Src).
+		Build()
+	cu.toSendToCP = respondToCP
+	cu.currentFlushReq = nil
+	cu.isFlushing = false
+	if cu.currentPid == 2 {
+		fmt.Println("we not stoppin bitches")
+	}
+	// }
 
 	return nil
 }
@@ -210,6 +257,25 @@ func (cu *ComputeUnit) handlePipelineResume(
 	now sim.VTimeInSec,
 	req *protocol.CUPipelineRestartReq,
 ) error {
+	// if cu.isFlushing == false {
+	// 	if cu.currentPid == 2 {
+	// 		fmt.Println("2cu should alr be rnning")
+	// 	} else if cu.currentPid != -1 {
+	// 		fmt.Println("whaaa")
+	// 	}
+	// 	rsp := protocol.CUPipelineRestartRspBuilder{}.
+	// 		WithSrc(cu.ToCP).
+	// 		WithDst(req.Src).
+	// 		WithSendTime(now).
+	// 		Build()
+	// 	err := cu.ToCP.Send(rsp)
+
+	// 	if err != nil {
+	// 		cu.currentRestartReq = nil
+	// 		log.Panicf("Unable to send restart rsp to CP")
+	// 	}
+	// 	return nil
+	// }
 	cu.isSendingOutShadowBufferReqs = true
 	cu.currentRestartReq = req
 
@@ -303,6 +369,7 @@ func (cu *ComputeUnit) processInputFromACE(now sim.VTimeInSec) bool {
 
 	switch req := req.(type) {
 	case *protocol.MapWGReq:
+		// fmt.Println("recevied wg req from", req.PID, cu.Name())
 		return cu.handleMapWGReq(now, req)
 	default:
 		panic("unknown req type")
@@ -313,6 +380,8 @@ func (cu *ComputeUnit) handleMapWGReq(
 	now sim.VTimeInSec,
 	req *protocol.MapWGReq,
 ) bool {
+
+	cu.currentPid = int(req.PID)
 	wg := cu.wrapWG(req.WorkGroup, req)
 
 	tracing.TraceReqReceive(req, cu)
@@ -809,6 +878,7 @@ func NewComputeUnit(
 	cu.ToScalarMem = sim.NewLimitNumMsgPort(cu, 4, name+".ToScalarMem")
 	cu.ToVectorMem = sim.NewLimitNumMsgPort(cu, 4, name+".ToVectorMem")
 	cu.ToCP = sim.NewLimitNumMsgPort(cu, 4, name+".ToCP")
+	cu.currentPid = -1
 
 	return cu
 }

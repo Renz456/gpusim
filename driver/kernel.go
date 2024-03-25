@@ -2,6 +2,7 @@ package driver
 
 import (
 	"encoding/binary"
+	"fmt"
 	"reflect"
 
 	"github.com/sarchlab/akita/v3/sim"
@@ -18,6 +19,7 @@ func (d *Driver) EnqueueLaunchKernel(
 	wgSize [3]uint16,
 	kernelArgs interface{},
 ) {
+	fmt.Println("launch kernel device id?", queue.GPUID)
 	dev := d.devices[queue.GPUID]
 
 	if dev.Type == internal.DeviceTypeUnifiedGPU {

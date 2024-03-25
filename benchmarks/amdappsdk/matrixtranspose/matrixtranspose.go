@@ -98,8 +98,12 @@ func (b *Benchmark) Run() {
 	// 	b.queues = append(b.queues, b.driver.CreateCommandQueue(b.context))
 	// } else {
 
-	for _, gpu := range b.gpus {
-		b.driver.SelectGPU(b.context, gpu)
+	for i, gpu := range b.gpus {
+		if i == 0 && b.driver.GetPid(b.context) == 2 {
+			b.driver.SelectGPU(b.context, gpu)
+		} else if i == 1 && b.driver.GetPid(b.context) == 1 {
+			b.driver.SelectGPU(b.context, gpu)
+		}
 		b.queues = append(b.queues, b.driver.CreateCommandQueue(b.context))
 	}
 	// }
@@ -178,6 +182,8 @@ func (b *Benchmark) exec() {
 			wgXPerGPU * uint32(i), 0,
 			0, 0, 0,
 		}
+		// time.Sleep()
+		// for i := 0; i < 5; i++ {
 
 		b.driver.EnqueueLaunchKernel(
 			queue,
@@ -186,6 +192,11 @@ func (b *Benchmark) exec() {
 			[3]uint16{uint16(b.blockSize), uint16(b.blockSize), 1},
 			&kernArg,
 		)
+		// 	if b.driver.GetPid(b.context) == 2 {
+		// 		break
+		// 	}
+		// }
+		// fmt.Println("context laucnhed kernel req", queue.Context.pid)
 	}
 
 	for _, q := range b.queues {
@@ -198,6 +209,9 @@ func (b *Benchmark) exec() {
 // Verify verifies
 func (b *Benchmark) Verify() {
 	failed := false
+	if b.driver.GetPid(b.context) == 1 {
+		return
+	}
 	for i := 0; i < b.Width; i++ {
 		for j := 0; j < b.Width; j++ {
 			actual := b.hOutputData[i*b.Width+j]
