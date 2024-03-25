@@ -100,6 +100,7 @@ func (b CUPipelineRestartRspBuilder) Build() *CUPipelineRestartRsp {
 
 // A CUPipelineFlushReq is a message from CP to ask the CU pipeline to flush
 type CUPipelineFlushReq struct {
+	PID int
 	sim.MsgMeta
 }
 

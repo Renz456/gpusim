@@ -183,7 +183,7 @@ func (d *Driver) Distribute(
 	if len(gpuIDs) == 1 {
 		return []uint64{byteSize}
 	}
-	if ctx.pid == 2 {
+	if ctx.pid == 1 {
 		fmt.Println("sending to gpu 2", byteSize)
 		return d.distributor.Distribute(ctx, uint64(addr), byteSize, gpuIDs[1:2])
 	} else {
@@ -230,6 +230,7 @@ func (d *Driver) EnqueueMemCopyH2D(
 	dst Ptr,
 	src interface{},
 ) {
+	fmt.Println("are you being called by context", queue.Context.pid)
 	cmd := &MemCopyH2DCommand{
 		ID:  sim.GetIDGenerator().Generate(),
 		Dst: dst,
@@ -280,6 +281,7 @@ func (d *Driver) EnqueueMemCopyD2D(
 
 // MemCopyH2D copies a memory from the host to a GPU device.
 func (d *Driver) MemCopyH2D(ctx *Context, dst Ptr, src interface{}) {
+	// fmt.Print("are you being called by context", ctx.pid)
 	queue := d.CreateCommandQueue(ctx)
 	d.EnqueueMemCopyH2D(queue, dst, src)
 	d.DrainCommandQueue(queue)

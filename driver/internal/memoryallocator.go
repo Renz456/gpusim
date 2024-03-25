@@ -126,7 +126,8 @@ func (a *memoryAllocatorImpl) AllocateUnified(
 
 	pageSize := uint64(1 << a.log2PageSize)
 	numPages := (byteSize-1)/pageSize + 1
-	return a.allocatePages(int(numPages), pid, 2, true)
+	fmt.Println("are we doing unified memory?????")
+	return a.allocatePages(int(numPages), pid, 1, true)
 }
 
 func (a *memoryAllocatorImpl) allocatePages(

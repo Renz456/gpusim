@@ -84,6 +84,10 @@ func (d *Driver) ResumeContext(ctx *Context, queue *CommandQueue) {
 	d.Enqueue(queue, cmd)
 }
 
+func (d *Driver) GetPid(ctx *Context) vm.PID {
+	return ctx.pid
+}
+
 // Terminate stops the driver thread execution.
 func (d *Driver) Terminate() {
 	d.driverStopped <- true
@@ -322,7 +326,7 @@ func (d *Driver) processOneCommand(
 		d.logCmdStart(cmd, now) // Do I need this??
 		return d.processResumeKernelCommand(now, cmd, cmdQueue)
 	default:
-		// fmt.Println("middleware command")
+		fmt.Println("middleware command", cmdQueue.Context.pid)
 		return d.processCommandWithMiddleware(now, cmd, cmdQueue)
 	}
 }
@@ -833,7 +837,7 @@ func (d *Driver) processPageMigrationRspFromCP(
 
 func (d *Driver) prepareGPURestartReqs(now sim.VTimeInSec) {
 	accessingGPUs := d.currentPageMigrationReq.CurrAccessingGPUs
-
+	// d.currentPageMigrationReq.Cur
 	for i := 0; i < len(accessingGPUs); i++ {
 		restartGPUID := accessingGPUs[i] - 1
 		restartReq := protocol.NewGPURestartReq(

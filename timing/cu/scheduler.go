@@ -1,6 +1,7 @@
 package cu
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/sarchlab/akita/v3/mem/mem"
@@ -488,6 +489,9 @@ func (s *SchedulerImpl) evalSWaitCnt(
 
 // Pause pauses
 func (s *SchedulerImpl) Pause() {
+	if s.cu.currentPid != -1 {
+		fmt.Println("mmm who pausing scheduler")
+	}
 	s.isPaused = true
 }
 

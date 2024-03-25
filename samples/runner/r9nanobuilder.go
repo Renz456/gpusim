@@ -54,10 +54,10 @@ type R9NanoGPUBuilder struct {
 	l1vReorderBuffers       []*rob2.ReorderBuffer
 	l1iReorderBuffers       []*rob2.ReorderBuffer
 	l1sReorderBuffers       []*rob2.ReorderBuffer
-	l1vCaches               []*writearound.Cache
-	l1sCaches               []*writethrough.Cache
+	l1vCaches               []*writearound.Cache  // write only to memory
+	l1sCaches               []*writethrough.Cache // write to cache and memory
 	l1iCaches               []*writethrough.Cache
-	l2Caches                []*writeback.Cache
+	l2Caches                []*writeback.Cache // write to cache, to memory on evict
 	l1vAddrTrans            []*addresstranslator.AddressTranslator
 	l1sAddrTrans            []*addresstranslator.AddressTranslator
 	l1iAddrTrans            []*addresstranslator.AddressTranslator

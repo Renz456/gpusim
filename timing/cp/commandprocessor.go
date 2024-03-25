@@ -159,8 +159,10 @@ func (p *CommandProcessor) processReqFromDriver(now sim.VTimeInSec) bool {
 	case *protocol.ShootDownCommand:
 		return p.processShootdownCommand(now, req)
 	case *protocol.GPURestartReq:
+		fmt.Println("we received a restart req", p.Name())
 		return p.processGPURestartReq(now, req)
 	case *protocol.PageMigrationReqToCP:
+		fmt.Println("we received a pmc req", p.Name())
 		return p.processPageMigrationReq(now, req)
 	case *protocol.PauseReq:
 		return p.processPauseReq(now, req)
@@ -400,6 +402,7 @@ func (p *CommandProcessor) processShootdownCommand(
 			WithSrc(p.ToCUs).
 			WithDst(p.CUs[i]).
 			Build()
+		req.PID = int(cmd.PID)
 		p.toCUsSender.Send(req)
 	}
 	fmt.Println("processing shootdown?")
@@ -415,6 +418,7 @@ func (p *CommandProcessor) processCUPipelineFlushRsp(
 	p.numCUAck--
 
 	if p.numCUAck == 0 {
+		fmt.Println("Received all flush acks")
 		for i := 0; i < len(p.AddressTranslators); i++ {
 			req := mem.ControlMsgBuilder{}.
 				WithSendTime(now).
@@ -438,6 +442,7 @@ func (p *CommandProcessor) processAddressTranslatorFlushRsp(
 ) bool {
 	p.numAddrTranslationFlushAck--
 
+	// fmt.Println("well we shouldn't be ehre now")
 	if p.numAddrTranslationFlushAck == 0 {
 		for _, port := range p.L1SCaches {
 			p.flushAndResetL1Cache(now, port)
@@ -501,6 +506,7 @@ func (p *CommandProcessor) processCacheFlushRsp(
 
 	if p.numCacheACK == 0 {
 		if p.shootDownInProcess {
+			fmt.Println("flushing tlb too?", p.Name())
 			return p.processCacheFlushCausedByTLBShootdown(now, rsp)
 		}
 		return p.processRegularCacheFlush(now, rsp)
@@ -548,6 +554,10 @@ func (p *CommandProcessor) processCacheFlushCausedByTLBShootdown(
 		p.numTLBAck++
 	}
 
+	req := protocol.NewShootdownCompleteRsp(now, p.ToDriver, p.Driver)
+	p.toDriverSender.Send(req)
+
+	p.shootDownInProcess = false
 	return true
 }
 
@@ -557,12 +567,12 @@ func (p *CommandProcessor) processTLBFlushRsp(
 ) bool {
 	p.numTLBAck--
 
-	if p.numTLBAck == 0 {
-		req := protocol.NewShootdownCompleteRsp(now, p.ToDriver, p.Driver)
-		p.toDriverSender.Send(req)
+	// if p.numTLBAck == 0 {
+	// 	req := protocol.NewShootdownCompleteRsp(now, p.ToDriver, p.Driver)
+	// 	p.toDriverSender.Send(req)
 
-		p.shootDownInProcess = false
-	}
+	// 	p.shootDownInProcess = false
+	// }
 
 	p.ToTLBs.Retrieve(now)
 
@@ -598,6 +608,7 @@ func (p *CommandProcessor) processGPURestartReq(
 	now sim.VTimeInSec,
 	cmd *protocol.GPURestartReq,
 ) bool {
+
 	for _, port := range p.L2Caches {
 		p.restartCache(now, port)
 	}
@@ -611,7 +622,32 @@ func (p *CommandProcessor) processGPURestartReq(
 	for _, port := range p.L1VCaches {
 		p.restartCache(now, port)
 	}
+	if p.numCacheACK == 0 {
+		for i := 0; i < len(p.TLBs); i++ {
+			p.numTLBAck++
 
+			req := tlb.RestartReqBuilder{}.
+				WithSendTime(now).
+				WithSrc(p.ToTLBs).
+				WithDst(p.TLBs[i]).
+				Build()
+			p.toTLBsSender.Send(req)
+		}
+
+		// for i := 0; i < len(p.AddressTranslators); i++ {
+		// 	req := mem.ControlMsgBuilder{}.
+		// 		WithSendTime(now).
+		// 		WithSrc(p.ToAddressTranslators).
+		// 		WithDst(p.AddressTranslators[i]).
+		// 		ToRestart().
+		// 		Build()
+		// 	p.toAddressTranslatorsSender.Send(req)
+
+		// 	// fmt.Printf("Restarting %s\n", p.AddressTranslators[i].Name())
+
+		// 	p.numAddrTranslationRestartAck++
+		// }
+	}
 	p.ToDriver.Retrieve(now)
 
 	return true
@@ -744,7 +780,7 @@ func (p *CommandProcessor) processPageMigrationRsp(
 	rsp *pagemigrationcontroller.PageMigrationRspFromPMC,
 ) bool {
 	req := protocol.NewPageMigrationRspToDriver(now, p.ToDriver, p.Driver)
-
+	fmt.Printf("we %s finshed page migrate? %f\n", p.Name(), now)
 	p.toDriverSender.Send(req)
 
 	p.ToPMC.Retrieve(now)

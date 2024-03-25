@@ -38,9 +38,9 @@ func main() {
 	benchmark1.Width = 512
 	runner.AddBenchmark(benchmark1)
 	// 2gb
-	// benchmark := matrixtranspose.NewBenchmark(runner.Driver())
-	// benchmark.Width = 512 //100
-	// runner.AddBenchmark(benchmark)
+	benchmark := matrixtranspose.NewBenchmark(runner.Driver())
+	benchmark.Width = 1024 //100
+	runner.AddBenchmark(benchmark)
 
 	runner.Run()
 	// runner.PauseBenchMark(benchmark_kmeans)
